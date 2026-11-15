@@ -7,8 +7,10 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#if defined(_WIN32)
 #include <shobjidl.h>
 #include <windows.h>
+#endif
 
 class PathSetupWizard : public rex::ui::ImGuiDialog {
 public:
@@ -112,6 +114,7 @@ private:
 
     static std::string BrowseForFolder(const char* default_path) {
         std::string result;
+#if defined(_WIN32)
         IFileDialog* dlg = nullptr;
         if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
             CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg))))
@@ -152,6 +155,9 @@ private:
         }
 
         dlg->Release();
+#else
+        (void)default_path;
+#endif
         return result;
     }
 

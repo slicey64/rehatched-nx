@@ -203,10 +203,13 @@ set(RENUT_SOURCES
     src/cpu/banjo_hot_shard_9.cpp
     src/cpu/banjo_hot_shard_10.cpp
     src/cpu/banjo_hot_shard_11.cpp
-    src/profiler/banjo_pc_profiler.cpp
     # PNG captures of the presented game image (nfsmw_captura_cada_s), from nfsmw-nx: for testing.
     src/native/nfsmw_nativo_captura.cpp
 )
+
+if(WIN32)
+    list(APPEND RENUT_SOURCES src/profiler/banjo_pc_profiler.cpp)
+endif()
 
 # Keyboard + mouse needs a desktop window; the Switch gets no-op hooks instead.
 if(REXGLUE_PLATFORM_SWITCH)
@@ -220,9 +223,11 @@ if(REXGLUE_PLATFORM_SWITCH)
 else()
     list(APPEND RENUT_SOURCES src/renut_engine/mnk_controls.cpp
         # Switch profiler counters the native renderer calls (no-ops on PC).
-        src/me/me_pc_stubs.cpp
+        src/me/me_pc_stubs.cpp)
+    if(WIN32)
         # Sampling CPU profiler for PC tests, from nfsmw-nx (nfsmw_perfil_pc_desde_s; logs/perfil_pc.csv).
-        src/profiler/nfsmw_perfil_pc.cpp)
+        list(APPEND RENUT_SOURCES src/profiler/nfsmw_perfil_pc.cpp)
+    endif()
 endif()
 
 if(WIN32)

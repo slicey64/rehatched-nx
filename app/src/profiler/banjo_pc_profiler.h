@@ -4,7 +4,12 @@
 // SDK's sampler (sdk/src/ui/switch_perf.cpp) does the same job.
 namespace banjo::pc_profiler {
 
+#if defined(_WIN32)
 void Start();
 void Stop();
+#else
+inline void Start() {}
+inline void Stop() {}
+#endif
 
 }  // namespace banjo::pc_profiler

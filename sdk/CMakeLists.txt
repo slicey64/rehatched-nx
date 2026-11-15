@@ -275,6 +275,9 @@ add_compile_options(
     -Wall
     -Wextra
 )
+if(NOT MSVC AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    add_compile_options(-msse4.1)
+endif()
 
 include_directories(${REXGLUE_ROOT}/include)
 

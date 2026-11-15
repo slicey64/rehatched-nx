@@ -1251,7 +1251,7 @@ void ShaderRecompiler::recompile(const AluInstruction& instr)
     }
 
     uint32_t vectorWriteMask = instr.vectorWriteMask;
-    if (instr.exportData)
+    if (instr.exportData && !exportRegister.empty())
         vectorWriteMask &= ~instr.scalarWriteMask;
 
 #ifdef REBLUE_RECOMP
@@ -1739,7 +1739,7 @@ void ShaderRecompiler::recompile(const AluInstruction& instr)
     }
 
     uint32_t scalarWriteMask = instr.scalarWriteMask;
-    if (instr.exportData)
+    if (instr.exportData && !exportRegister.empty())
         scalarWriteMask &= ~instr.vectorWriteMask;
 
     if (scalarWriteMask != 0)
@@ -1775,7 +1775,7 @@ void ShaderRecompiler::recompile(const AluInstruction& instr)
     }
 #endif
 
-    if (instr.exportData)
+    if (instr.exportData && !exportRegister.empty())
     {
         uint32_t zeroMask = instr.scalarDestRelative ? (0b1111 & ~(instr.vectorWriteMask | instr.scalarWriteMask)) : 0;
         uint32_t oneMask = instr.vectorWriteMask & instr.scalarWriteMask;
