@@ -231,3 +231,6 @@ Detailed license texts and notices for all bundled subcomponents are available i
 - *Nintendo Switch* is a trademark of **Nintendo Co., Ltd.**
 - ReHatched-NX is an independent open-source reverse-engineering project and is **not affiliated with, endorsed by, or sponsored by** Rovio Entertainment, Activision Blizzard, Microsoft, or Nintendo.
 - No copyrighted game data, executable binaries, cutscenes, textures, or audio streams are included or hosted in this repository. End users are required to supply their own legally purchased copy of the game.
+
+### AI disclosure
+This was made with the help of both Claude Code and Google Antigravity. They did a great job, and this project could not have been done without them. I looked over all of the code they both implemented, and you should do the same if you are cautious. This repository remains 100% open source, and any issues that may arise will be worked on and implemented.
