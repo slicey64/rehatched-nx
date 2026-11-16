@@ -29,29 +29,6 @@ This was built on CachyOS linux. I have not tested it on Windows, macOS or any o
 
 ---
 
-## How It Came to Be
-
-ReHatched-NX originated from [`renut_nx_ultimate_base`](https://github.com/ChanseyIsTheBest/renut_nx_ultimate_base), an omnibus foundation maintained by ChanseyIsTheBest that unified universal fixes across multiple Xbox 360-to-Switch ports (*Banjo-Kazooie: Nuts & Bolts*, *Beautiful Katamari*, *Kameo*, *Halo 3*, *Viva Piñata*, *Ridge Racer 6*, *Sonic & All-Stars Racing Transformed*, *Blur*, and others).
-
-### 1. Decoupling and Establishing the Baseline
-The project began by decoupling the template game layer (which defaulted to *Beautiful Katamari*):
-- Stripping Katamari-specific PGO profile counts, hot-function overrides, and build artifacts.
-- Ingesting the *Angry Birds Trilogy* Xbox 360 executable (`default.xex`, base address `0x82000000`, entry point `0x8267B288`, code size ~8.5 MB) into `renut_manifest.toml`.
-- Rebuilding host tools for cross-platform Linux (Clang 23) and Windows development.
-
-### 2. Reverse Engineering XDK 2.0.9407.0 Hooks
-Early console builds produced a black screen and hung waiting for the GPU command ring. Analysis via gdb and register trace auditing revealed that *Angry Birds Trilogy* was compiled with **XDK 2.0.9407.0**, which altered core Direct3D dispatch tables and function offsets compared to earlier 360 games:
-- **Direct Call Collisions:** `post_codegen.py` converted direct calls to unhooked addresses, bypassing reNut's renderer and deadlocking the guest in ring-buffer polling.
-- **Hook Realignment:** Using automated register arity checks and disassembly analysis, Direct3D entry points were remapped to the actual XDK addresses (e.g. `CreateTexture` at `sub_8226EF50`, `CreateSurface` at `sub_8226F070`, `CreateVertexDeclaration` at `sub_8227AD80`, `D3DVertexShader_Bind` at `sub_82280DE8`, and `Resolve` at `sub_8228CA80`).
-- Device state offsets were updated to match the runtime struct layout (vertex declaration at offset `+12240`, pixel shader at `+13068`, vertex shader at `+13072`).
-
-### 3. Gameplay & Rendering Breakthroughs
-Once the title screen booted, real-hardware testing and Ryujinx/RenderDoc profiling uncovered several critical engine quirks:
-- **Mesh Code Stack Crash (`sub_8264B660`):** At the end of level 1, the mesh parser (`sub_8261DF30`) queried `D3DVertexDeclaration_GetDeclaration` (`sub_8227AE00`). Because vertex declarations were managed inside reNut's internal records rather than the guest memory pool, the unhooked routine returned uninitialized elements lacking `D3DDECL_END`, causing the search loop to walk off the top of the stack. A dedicated hook was added to replicate the original declaration structure from reNut's descriptors.
-- **Internal Resolve Hooking:** The game's render engine directly invoked internal resolve worker `sub_8228B928` rather than the public `D3DDevice_Resolve` API, causing several render passes to drop. A forwarding hook mapped these raw internal resolves into reNut's pipeline.
-- **Flickering & Black Backgrounds (EDRAM Header Aliasing):** In level 1-1, backgrounds rendered completely black on console hardware. Frame analysis showed the game dynamically re-pointed a single depth surface header between a `640x360` view and a `1280x720` EDRAM view every frame. reNut's default `UnuseTarget` immediately released targets left without active users, forcing a destroy/rebuild cycle 60 times per second that caused undefined GPU contents on hardware. Implementing `rehatched_keep_unused_targets` allowed inactive render targets to persist across view transitions until retired by the idle sweep, permanently resolving the background flicker at a locked 60 fps.
-- **Input Alignment:** Face button mappings were standardized to physical Switch letter conventions (`input_xbox_layout = false`).
-
 Detailed engineering logs and memory offsets are documented in [docs/rehatched-notes.md](docs/rehatched-notes.md).
 
 ### 1. CPU Recompilation (ReXGlue)
@@ -174,7 +151,7 @@ cmake --build app/out/pc_host -j$(nproc)
 ---
 
 ## Running on Switch
-
+`Note: This requires a Switch that has been modchipped or uses the Fusée Gelée hardware exploit to install custom firmware. This cannot be run on a stock Switch.`
 1. Copy the build output and configuration files to your SD card:
    ```text
    sdmc:/
