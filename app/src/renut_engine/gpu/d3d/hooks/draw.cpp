@@ -613,20 +613,29 @@ BANJO_RENUT_UNHOOKED_HOOK(sub_824DA9C0, D3DDevice_DrawIndexedTessellatedVertices
 BANJO_RENUT_HOOK(sub_8228A5A0, D3DDevice_DrawVerticesUP_hook);  // D3DDevice_DrawVerticesUP
 BANJO_RENUT_UNHOOKED_HOOK(sub_8263F2B8, D3DDevice_DrawIndexedVerticesUP_hook);  // D3DDevice_DrawIndexedVerticesUP
 BANJO_RENUT_HOOK(sub_8228A0E0, D3DDevice_BeginVertices_hook);  // D3DDevice_BeginVertices
-BANJO_RENUT_HOOK(sub_8228CFF0, D3DDevice_ClearF_hook);  // D3DDevice_ClearF
-BANJO_RENUT_HOOK(sub_8228D590, D3DDevice_Clear_hook);  // D3DDevice_Clear
-BANJO_RENUT_HOOK(sub_8228DC10, D3DDevice_Resolve_hook);  // D3DDevice_Resolve
+// rehatched-nx (XDK 2.0.9407.0), by the call chain: Clear sub_8228DD48 (Count, pRects, Flags, D3DCOLOR in r7 made a
+// float4, Z, Stencil in r9; one ClearF a rect) -> ClearF sub_8228DC10 (Flags, pRect: none = the bound target's size,
+// pColor, Z, Stencil in r8) -> sub_8228D590 -> sub_8228CFF0 (D3D internals, one caller each, not hooked). Resolve is
+// sub_8228CA80 (r3-r10, then ClearStencil and pParameters after ClearZ's stack slot; it calls the internal
+// sub_8228B928 with two zeros inserted), EndTiling sub_822815C0 (eight arguments; called next to BeginTiling's caller,
+// resolves through sub_8228CA80). Before: ClearF and Clear were on the two internals, Resolve on ClearF and the
+// EndTiling hook on Clear, so no resolve ever reached the renderer (no front buffer: nothing presented).
+BANJO_RENUT_HOOK(sub_8228DC10, D3DDevice_ClearF_hook);  // D3DDevice_ClearF
+BANJO_RENUT_HOOK(sub_8228DD48, D3DDevice_Clear_hook);  // D3DDevice_Clear
+BANJO_RENUT_HOOK(sub_8228CA80, D3DDevice_Resolve_hook);  // D3DDevice_Resolve
 BANJO_RENUT_UNHOOKED_HOOK_SHARED(sub_82246798, D3DDevice_BeginTiling_hook);
 BANJO_RENUT_UNHOOKED_HOOK(sub_821E17C0, D3DDevice_EndTiling_hook);
 BANJO_RENUT_HOOK_RAW(sub_82281250) {
   BeginTilingImpl(ctx.r3.u32, ctx.r5.u32, ctx.r6.u32, ctx.r7.u32, ctx.r4.u32, float(ctx.f1.f64), ctx.r9.u32);
 }
-BANJO_RENUT_HOOK_RAW(sub_8228DD48) {
+BANJO_RENUT_HOOK_RAW(sub_822815C0) {
   ctx.r3.u64 = EndTilingImpl(ctx.r3.u32, true, ctx.r4.u32, ctx.r5.u32, ctx.r6.u32, ctx.r7.u32, float(ctx.f1.f64),
                              ctx.r9.u32, ctx.r10.u32);
 }
 BANJO_RENUT_UNHOOKED_HOOK_SHARED(sub_82237FE8, D3DDevice_BeginExport_hook);
 BANJO_RENUT_UNHOOKED_HOOK_SHARED(sub_82237D80, D3DDevice_EndExport_hook);
 BANJO_RENUT_HOOK(sub_8227E2C8, D3DDevice_Present_hook);  // D3DDevice_Present
-BANJO_RENUT_HOOK(sub_8227A858, D3DDevice_SetVertexShader_hook);  // D3DDevice_SetVertexShader
-BANJO_RENUT_HOOK(sub_8227AC78, D3DDevice_SetPixelShader_hook);  // D3DDevice_SetPixelShader
+// rehatched-nx: by the slots each stores (d3d.h): sub_8227AA60 SetVertexShader, sub_8227A858 SetPixelShader
+// (sub_8227AC78, hooked as SetPixelShader before, is SetVertexDeclaration: state.cpp).
+BANJO_RENUT_HOOK(sub_8227AA60, D3DDevice_SetVertexShader_hook);  // D3DDevice_SetVertexShader
+BANJO_RENUT_HOOK(sub_8227A858, D3DDevice_SetPixelShader_hook);  // D3DDevice_SetPixelShader

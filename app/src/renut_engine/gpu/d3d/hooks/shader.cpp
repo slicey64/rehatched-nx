@@ -827,11 +827,22 @@ void D3DVertexShader_Bind_hook(u32 shader_va, u32 declaration_va, mapped_u32 str
   render_thread::Queue([binding] { ApplyBindingLocked(binding); });
 }
 
+// rehatched-nx: XDK 2.0.9407.0 has the first release's form, (pShader, Flags, pDecl, pStreamStrides, Index)
+// (sub_82280DE8 reads the declaration's highest stream at r5 + 28 and the strides from r6). Unhooked, the game's own
+// Bind read a declaration record of CreateVertexDeclaration's hook as its own and ran off the stack.
+void D3DVertexShader_Bind_flags_hook(u32 shader_va, u32 /*flags*/, u32 declaration_va, mapped_u32 stream_strides,
+                                     u32 /*index*/) {
+  D3DVertexShader_Bind_hook(shader_va, declaration_va, stream_strides);
+}
+
 } // namespace
 
 BANJO_RENUT_HOOK(sub_8227B2F8, D3DDevice_CreateVertexShader_hook);  // D3DDevice_CreateVertexShader
 BANJO_RENUT_HOOK(sub_8227B110, D3DDevice_CreatePixelShader_hook);  // D3DDevice_CreatePixelShader
-BANJO_RENUT_HOOK(sub_8227B6A0, D3DDevice_CreateVertexDeclaration_hook);  // D3DDevice_CreateVertexDeclaration
-BANJO_RENUT_UNHOOKED_HOOK(sub_8263FBD0, D3DVertexShader_Bind_hook);  // D3DVertexShader_Bind
+// rehatched-nx: sub_8227AD80 is CreateVertexDeclaration (counts the 12-byte elements to Stream 0xFF, allocates
+// 56 + 12 n bytes, five callers in the game). sub_8227B6A0, hooked here before, is the EDRAM allocator CreateSurface
+// calls (best fit in a free list, the offset through r4): not a D3D entry point.
+BANJO_RENUT_HOOK(sub_8227AD80, D3DDevice_CreateVertexDeclaration_hook);  // D3DDevice_CreateVertexDeclaration
+BANJO_RENUT_HOOK(sub_82280DE8, D3DVertexShader_Bind_flags_hook);  // D3DVertexShader_Bind (with Flags and Index)
 BANJO_RENUT_HOOK(sub_8227B200, XGRegisterVertexShader_hook);  // XGRegisterVertexShader
 BANJO_RENUT_UNHOOKED_HOOK(sub_826375A0, XGRegisterPixelShader_hook);  // XGRegisterPixelShader

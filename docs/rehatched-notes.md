@@ -32,3 +32,47 @@
 - Calling Convention Verification:
   - `tools/cc_entry_census.py`: `none` (0 pointer-reached functions reading v0 or v32-v63 on entry).
   - `tools/cc_exit_census.py`: verified that all trailing reads after indirect calls are value-independent NOP moves (e.g. `mr r8, r8`).
+
+## 4. Renut's Direct3D hooks on XDK 2.0.9407.0 (2026-11-15/16)
+
+The black screen on the console: the game never got past the XDK's wait for the GPU. Found on the PC build with gdb
+(attach is blocked by ptrace_scope, so the game runs under gdb and is interrupted), then fixed one stop at a time.
+
+1. **Hooks never reached.** The hook addresses changed after `tools/post_codegen.py` had run, so `direct_calls.py`
+   had turned the calls to them into direct `__imp__sub_X` calls (Direct3D_CreateDevice among them): the game made its
+   device the XDK's way and spun in Swap's wait for a ring read pointer no GPU moves (`sub_8226C788`). Rule: **after
+   any change to a hook address, run `python3 tools/post_codegen.py` in full** (`direct_calls.py --check` says 0).
+2. **Wrong addresses.** The previous mapping had many hooks on the wrong functions. Each was checked against the guest
+   code (`tools/hook_arity_check.py` compares argument registers read with the hook's parameters; the rest by the
+   stores and calls). Corrected:
+
+   | Function | Was | Is | Evidence |
+   |---|---|---|---|
+   | CreateTexture | unhooked | `sub_8226EF50` | 8 args, 0x34 header, type in r10 |
+   | CreateSurface | `sub_8226EF50` | `sub_8226F070` | 5 args, 0x30 header, EDRAM allocation |
+   | CreateVertexDeclaration | `sub_8227B6A0` (EDRAM allocator) | `sub_8227AD80` | counts 12-byte elements to 0xFF |
+   | D3DVertexShader_Bind | unhooked | `sub_82280DE8` (5-arg wrapper) | first-release form with Flags and a 5th arg |
+   | InsertCallback | `sub_82270FF0` (InsertFence) | not found, unhooked | InsertFence reads only the device |
+   | BeginRingBig | `sub_82270458` (SetFence) | `sub_82271120` | BeginRing(count): room, KickOff |
+   | BeginRingManual | `sub_82271120` | not identified, unhooked | |
+   | SetGammaRamp / SetPWLGamma | 2-arg hooks | 3-arg wrappers | this XDK keeps Flags (ramp in r5) |
+   | SetVertexShader | `sub_8227A858` | `sub_8227AA60` | stores +13072, reads the shader's +872 |
+   | SetPixelShader | `sub_8227AC78` | `sub_8227A858` | stores +13068 |
+   | SetVertexDeclaration | `sub_8227AA60` | `sub_8227AC78` | stores +12240 (SetFVF `sub_8227B3E8` too) |
+   | Clear | `sub_8228D590` (internal) | `sub_8228DD48` | Count, pRects, Flags, D3DCOLOR, Z, Stencil |
+   | ClearF | `sub_8228CFF0` (internal) | `sub_8228DC10` | NULL rect = the bound target's size |
+   | Resolve | `sub_8228DC10` (ClearF) | `sub_8228CA80` | 11 args; calls internal `sub_8228B928` |
+   | EndTiling (raw) | `sub_8228DD48` (Clear) | `sub_822815C0` | 8 args, called beside BeginTiling's caller |
+
+   Device offsets (d3d.h, d3d_native_state.cpp) were rotated with them: vertex declaration +12240, pixel shader
+   +13068, vertex shader +13072; the device's own (FVF) declaration is at +12568 (draw.cpp kDeviceDeclarationOffset).
+3. Result on the PC (Vulkan, 2026-11-16): Activision logo, then the title screen ("Press Start"), 60 fps, ~70 draws a
+   frame, no errors or verify differences (out/pc_runs/hooks9).
+
+Open:
+- The game also calls the internal resolve `sub_8228B928` directly (`sub_824891A0`, `sub_8249EE80`, `sub_824A05D0`)
+  with two extra arguments (r6: a register value it writes in a PM4 packet; r7: a flag). Those resolves bypass the
+  Resolve hook; to hook next if a gameplay picture lacks a pass.
+- InsertCallback and BeginRingManual of this XDK are not identified.
+- 24 of the base's resource hooks (Lock*, GetDesc, layouts) and some state hooks are still at Katamari addresses
+  (unhooked); the guest's own versions run.

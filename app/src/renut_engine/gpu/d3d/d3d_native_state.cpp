@@ -49,9 +49,9 @@ constexpr u32 kViewport = 13024;            // 0x32E0
 constexpr u32 kVportXScale = 0x2908;
 constexpr u32 kVportZScale = 0x2918;
 constexpr u32 kStreamDeclStrides = 12264;   // 0x2FE8 u8[16]
-constexpr u32 kVertexDeclaration = 13072;   // 0x3310
-constexpr u32 kVertexShader = 13068;        // 0x330C
-constexpr u32 kPixelShader = 12240;         // 0x2FD0
+constexpr u32 kVertexDeclaration = d3d::kDeviceOffsetVertexDeclaration;  // 12240 (rehatched-nx: d3d.h)
+constexpr u32 kVertexShader = d3d::kDeviceOffsetVertexShader;            // 13072
+constexpr u32 kPixelShader = d3d::kDeviceOffsetPixelShader;              // 13068
 constexpr u32 kGprAllocation = 11048;       // 0x2B28
 constexpr u32 kScreenExtentQueryMode = 11044; // 0x2B24
 

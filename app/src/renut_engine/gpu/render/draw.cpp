@@ -8915,7 +8915,9 @@ VertexDeclarationRecord &NoDeclaration() {
 // Its D3DVERTEXELEMENT9s (12 bytes each, ended by D3DDECL_END) are at +52 of the declaration, inside the device
 // snapshot, so a draw reads them from its own snapshot; at most 15 before the device's next field (+0x3088). One record
 // per distinct element list; each new list is logged once with its elements, to check the layout.
-constexpr u32 kDeviceDeclarationOffset = 0x2F98;
+// rehatched-nx: XDK 2.0.9407.0's device declaration is at +12568 (0x3118: SetFVF sub_8227B3E8 builds it there and
+// CreateDevice's hook points the device at it); its elements end before the FVF word at +12808.
+constexpr u32 kDeviceDeclarationOffset = 12568;
 constexpr u32 kDeclarationElementsOffset = 52;
 constexpr u32 kDeviceDeclarationMaxElements = 15;
 

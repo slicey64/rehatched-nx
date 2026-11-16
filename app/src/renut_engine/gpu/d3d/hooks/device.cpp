@@ -1205,6 +1205,15 @@ void D3DDevice_SetPWLGamma_hook(u32 device_va, u32 pwl_va) {
   SetPWLGamma(d, pwl);
 }
 
+// rehatched-nx: XDK 2.0.9407.0 keeps the Flags argument: (D3DDevice*, DWORD Flags, ramp) (sub_8226B8D0 and
+// sub_8226B9A0 pass r5 to their converters). The two-argument hooks read Flags as the ramp's address.
+void D3DDevice_SetGammaRamp_flags_hook(u32 device_va, u32 /*flags*/, u32 ramp_va) {
+  D3DDevice_SetGammaRamp_hook(device_va, ramp_va);
+}
+void D3DDevice_SetPWLGamma_flags_hook(u32 device_va, u32 /*flags*/, u32 pwl_va) {
+  D3DDevice_SetPWLGamma_hook(device_va, pwl_va);
+}
+
 // The D3D internals Direct3D_CreateDevice and D3DDevice_Release run, for any
 // other caller.
 void D3D_XenonGpu_Initialize_hook(u32 device) {
@@ -1275,7 +1284,10 @@ void SetFence(u32 device_va) {
 
 } // namespace renut::gpu::native
 
-BANJO_RENUT_HOOK(sub_82270FF0, D3DDevice_InsertCallback_hook);  // D3DDevice_InsertCallback
+// rehatched-nx: sub_82270FF0 reads only the device (fence tag +11036 to +11056, then KickOff): it is InsertFence,
+// not InsertCallback; hooked as InsertCallback it queued garbage from r5 as a callback and the first Swap trapped on
+// a call to guest address 0. This XDK's InsertCallback is not found yet: not hooked (see docs/rehatched-notes.md).
+BANJO_RENUT_UNHOOKED_HOOK(sub_82270FF0, D3DDevice_InsertCallback_hook);  // D3DDevice_InsertCallback (not found)
 BANJO_RENUT_HOOK(sub_8226CAE0, D3DDevice_AddRef_hook);  // D3DDevice_AddRef
 BANJO_RENUT_HOOK(sub_8226CB90, D3DDevice_AcquireThreadOwnership_hook);  // D3DDevice_AcquireThreadOwnership
 BANJO_RENUT_HOOK(sub_8226CBD0, D3DDevice_ReleaseThreadOwnership_hook);  // D3DDevice_ReleaseThreadOwnership
@@ -1285,8 +1297,8 @@ BANJO_RENUT_UNHOOKED_HOOK(sub_8225D1D0, D3DDevice_BlockOnFence_hook);  // D3DDev
 BANJO_RENUT_HOOK(sub_8227C2F0, D3D_SynchronizeToPresentationInterval_hook);  // D3D_SynchronizeToPresentationInterval
 BANJO_RENUT_UNHOOKED_HOOK(sub_8263D4B8, D3DResource_GetDevice_hook);  // D3DResource_GetDevice
 BANJO_RENUT_UNHOOKED_HOOK(sub_82BC8078, D3D_IsFusion_hook);  // D3D_IsFusion
-BANJO_RENUT_HOOK(sub_8226B8D0, D3DDevice_SetGammaRamp_hook);  // D3DDevice_SetGammaRamp
-BANJO_RENUT_HOOK(sub_8226B9A0, D3DDevice_SetPWLGamma_hook);  // D3DDevice_SetPWLGamma
+BANJO_RENUT_HOOK(sub_8226B8D0, D3DDevice_SetGammaRamp_flags_hook);  // D3DDevice_SetGammaRamp (with Flags)
+BANJO_RENUT_HOOK(sub_8226B9A0, D3DDevice_SetPWLGamma_flags_hook);  // D3DDevice_SetPWLGamma (with Flags)
 BANJO_RENUT_HOOK(sub_8226D0D0, Direct3D_CreateDevice_hook);  // Direct3D_CreateDevice
 BANJO_RENUT_HOOK(sub_8226CB08, D3DDevice_Release_hook);  // D3DDevice_Release
 BANJO_RENUT_HOOK(sub_82281A78, D3D_XenonGpu_Initialize_hook);  // D3D_XenonGpu_Initialize
@@ -1295,8 +1307,13 @@ BANJO_RENUT_HOOK(sub_82279768, D3D_InitializePresentationParameters_hook);  // D
 BANJO_RENUT_HOOK(sub_82279590, D3D_CDevice_Uninitialize_hook);  // D3D_CDevice_Uninitialize
 BANJO_RENUT_HOOK(sub_82270EE8, KickOff_hook);  // D3D_CDevice_KickOff
 BANJO_RENUT_HOOK(sub_82270BA8, KickOffSegment_hook);  // D3D_CDevice_KickOffSegment
-BANJO_RENUT_HOOK(sub_82270458, BeginRingBig_hook);  // D3D_CDevice_BeginRingBig
-BANJO_RENUT_HOOK(sub_82271120, BeginRingManual_hook);  // D3D_CDevice_BeginRingManual
+// rehatched-nx: sub_82271120 is BeginRing(device, count) (room for count dwords, KickOff and make room when the
+// segment is full; 13 callers, Swap among them): BeginRingBig's hook, which rewinds when full. It was hooked as
+// BeginRingManual, which never checks the room. sub_82270458, hooked as BeginRingBig before, is CDevice::SetFence (the
+// fence packets into the ring at r4, fence tag +2; called by KickOffSegment, which is hooked, and sub_8227E468): it
+// runs as the game's own. This XDK's BeginRingManual is not identified: not hooked.
+BANJO_RENUT_HOOK(sub_82271120, BeginRingBig_hook);  // D3D_CDevice_BeginRing
+BANJO_RENUT_UNHOOKED_HOOK(sub_82270458, BeginRingManual_hook);  // D3D_CDevice_BeginRingManual (not identified)
 BANJO_RENUT_HOOK(sub_8226FD20, RingBufferDeviceAllocate_hook);  // D3D_RingBufferDeviceAllocate
 BANJO_RENUT_UNHOOKED_HOOK(sub_821FC318, AllocateInlineData_hook);  // D3D_CDevice_AllocateInlineData
 BANJO_RENUT_HOOK(sub_82271388, D3DDevice_SetRingBufferParameters_hook);  // D3DDevice_SetRingBufferParameters

@@ -1719,7 +1719,11 @@ u32 AddRefResource(u32 resource) {
 
 } // namespace renut::gpu::native
 
-BANJO_RENUT_HOOK(sub_8226EF50, D3DDevice_CreateSurface_hook);  // D3DDevice_CreateSurface
+// rehatched-nx: sub_8226EF50 is CreateTexture (8 arguments, 0x34-byte header, XGSetTextureHeader with the type in
+// r10; sub_825B8108 calls it as (w, h, 1, 1, 0, format, 0, D3DRTYPE_TEXTURE)), not CreateSurface: hooked as
+// CreateSurface it returned 0 and the game stopped in its fatal-error handler sub_82556918 (line 109).
+// sub_8226F070 is CreateSurface (5 arguments, 0x30-byte header, XGSetSurfaceHeader, EDRAM tiles up to 2048).
+BANJO_RENUT_HOOK(sub_8226F070, D3DDevice_CreateSurface_hook);  // D3DDevice_CreateSurface
 BANJO_RENUT_HOOK(sub_82273EB0, D3DResource_Destroy_hook);  // D3DResource_Destroy
 BANJO_RENUT_HOOK(sub_82273128, D3D_UnlockResource_hook);  // D3D_UnlockResource
 BANJO_RENUT_HOOK(sub_822735A0, D3DVertexBuffer_Unlock_hook);  // D3DVertexBuffer_Unlock
@@ -1755,7 +1759,7 @@ BANJO_RENUT_HOOK(sub_8226ED98, D3DCubeTexture_GetCubeMapSurface_hook);  // D3DCu
 BANJO_RENUT_HOOK(sub_8226EE78, D3DVolumeTexture_GetVolumeLevel_hook);  // D3DVolumeTexture_GetVolumeLevel
 BANJO_RENUT_HOOK(sub_822734D8, D3DDevice_CreateVertexBuffer_hook);  // D3DDevice_CreateVertexBuffer
 BANJO_RENUT_HOOK(sub_822735B0, D3DDevice_CreateIndexBuffer_hook);  // D3DDevice_CreateIndexBuffer
-BANJO_RENUT_UNHOOKED_HOOK(sub_824D22D8, D3DDevice_CreateTexture_hook);  // D3DDevice_CreateTexture
+BANJO_RENUT_HOOK(sub_8226EF50, D3DDevice_CreateTexture_hook);  // D3DDevice_CreateTexture (rehatched-nx: see above)
 BANJO_RENUT_UNHOOKED_HOOK(sub_824D1B18, SetTextureHeader_hook);  // D3D_SetTextureHeader
 BANJO_RENUT_UNHOOKED_HOOK(sub_824D09C8, FindTextureSize_hook);  // D3D_FindTextureSize
 BANJO_RENUT_UNHOOKED_HOOK(sub_824D0820, GetMaxMipLevels_hook);  // D3D_GetMaxMipLevels

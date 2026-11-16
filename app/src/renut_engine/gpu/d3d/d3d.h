@@ -272,15 +272,19 @@ constexpr u32 kDeviceOffsetIsTitleProcess = 11020;    // KeGetCurrentProcessType
 constexpr u32 kDeviceOffsetBehaviorFlags = 24392;     // Direct3D_CreateDevice arg 4 (0x5F48)
 
 // Bound objects the Set* calls store in the CDevice-private area (guest VAs).
-constexpr u32 kDeviceOffsetVertexDeclaration = 13072;  // SetVertexDeclaration (0x3310)
+// rehatched-nx (XDK 2.0.9407.0): the three slots by the setters' own stores: SetVertexDeclaration (sub_8227AC78, and
+// SetFVF sub_8227B3E8 with the device's own declaration at +12568) +12240; SetPixelShader (sub_8227A858) +13068;
+// SetVertexShader (sub_8227AA60, reads the shader's +872 block) +13072. They had been rotated (declaration 13072,
+// pixel shader 12240, vertex shader 13068): every draw was dropped with its pixel shader taken for the vertex shader.
+constexpr u32 kDeviceOffsetVertexDeclaration = 12240;  // SetVertexDeclaration (0x2FD0)
 constexpr u32 kDeviceOffsetIndexBuffer = 12812;        // SetIndices (0x320C)
 constexpr u32 kDeviceOffsetRenderTargets = 12816;      // SetRenderTarget, [4] (0x3210)
 constexpr u32 kDeviceOffsetDepthStencil = 12832;       // SetDepthStencilSurface (0x3220)
 constexpr u32 kDeviceOffsetStreamSources = 12836;      // SetStreamSource, [16] (0x3224)
 constexpr u32 kDeviceOffsetStreamStrides = 12904;      // SetStreamSource, u8[16], stride / 4 (0x3268)
 constexpr u32 kDeviceOffsetTextures = 12920;           // SetTexture, [kTextureFetchSlots] (0x3278)
-constexpr u32 kDeviceOffsetPixelShader = 12240;        // SetPixelShader (0x2FD0)
-constexpr u32 kDeviceOffsetVertexShader = 13068;       // SetVertexShader (0x330C)
+constexpr u32 kDeviceOffsetPixelShader = 13068;        // SetPixelShader (0x330C)
+constexpr u32 kDeviceOffsetVertexShader = 13072;       // SetVertexShader (0x3310)
 // CDevice's viewport floats (x, y, width, height), which D3D clamps a clear to (0x32E0).
 constexpr u32 kDeviceOffsetViewport = 13024;
 // In m_TessellatorPacket, which holds registers 0x2280 on: VGT_HOS_CNTL

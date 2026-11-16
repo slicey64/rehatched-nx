@@ -499,7 +499,7 @@ BANJO_RENUT_HOOK(sub_8226F2D0, D3DDevice_SetTexture_hook);  // D3DDevice_SetText
 BANJO_RENUT_UNHOOKED_HOOK(sub_824A3D40, D3DDevice_SetTexture_hook);  // D3DDevice_SetTexture_Inline
 BANJO_RENUT_HOOK(sub_8226B698, D3DDevice_SetStreamSource_hook);  // D3DDevice_SetStreamSource
 BANJO_RENUT_HOOK(sub_8226B7B8, D3DDevice_SetIndices_hook);  // D3DDevice_SetIndices
-BANJO_RENUT_HOOK(sub_8227AA60, D3DDevice_SetVertexDeclaration_hook);  // D3DDevice_SetVertexDeclaration
+BANJO_RENUT_HOOK(sub_8227AC78, D3DDevice_SetVertexDeclaration_hook);  // D3DDevice_SetVertexDeclaration (rehatched-nx: the store to +12240)
 BANJO_RENUT_HOOK(sub_8226BEF0, D3DDevice_SetViewport_hook);  // D3DDevice_SetViewport
 BANJO_RENUT_HOOK(sub_8226BC88, D3D_SetViewport_hook);  // D3D_SetViewport
 BANJO_RENUT_HOOK(sub_8226B5A0, D3DDevice_SetScissorRect_hook);  // D3DDevice_SetScissorRect
