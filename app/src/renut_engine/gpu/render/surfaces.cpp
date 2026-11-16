@@ -1121,6 +1121,22 @@ std::mutex g_stack_headers_mutex;
 std::unordered_map<u32, d3d::SurfaceDesc> g_stack_headers;
 inline bool StackVa(u32 va) { return va >= 0x70000000u && va < 0x80000000u; }
 
+// rehatched-nx (2026-11-16, RenderDoc captures of Ryujinx, out/rdc/rdc6_seq): Angry Birds Trilogy re-points one heap
+// header (0x4000A6D0, and its depth 0x4000A7D0) between a 1280-pitch and a 640-pitch view of EDRAM several times a
+// frame; the device holds only the address, the same for both. The render thread read the header when it replayed a
+// draw, by which time the game had often re-pointed it: the same sprite draws went to the main target in one frame and
+// to the other view's in the next (the level's birds, pigs and blocks flickered). With the key on, every bound
+// surface's header is captured with the operation (CaptureStackHeaders), not only the stack's, and read from there.
+REXCVAR_DEFINE_BOOL(rehatched_all_surface_headers, true, "Banjo/Enhancements",
+                    "From rehatched-nx: the headers of every bound surface (not only those on the stack, "
+                    "blur_renut_stack_surface_headers) are kept with each draw, clear and resolve as the game bound "
+                    "them, and the render thread reads those. Off: a heap header re-pointed later is read as it is then")
+    .lifecycle(rex::cvar::Lifecycle::kInitOnly);
+inline bool CapturedHeaderVa(u32 va) {
+  static const bool all = REXCVAR_GET(rehatched_all_surface_headers);
+  return all || StackVa(va);
+}
+
 // blur-nx (2026-11-10, port 76; its key 218: blur_renut_wipe_overwritten; see surfaces.h).
 bool OverlapWrittenSinceLocked(const HostSurface *surface, uint64_t seq) {
   if (!surface || surface->depth)
@@ -1255,8 +1271,20 @@ void CaptureStackHeaders(const u8 *device, StackHeaderSet &out) {
                       be(d3d::kDeviceOffsetRenderTargets + 8), be(d3d::kDeviceOffsetRenderTargets + 12),
                       be(d3d::kDeviceOffsetDepthStencil)};
   for (const u32 va : vas) {
-    if (!StackVa(va) || out.count >= 5)
+    if (!va || !CapturedHeaderVa(va) || out.count >= 5)  // rehatched-nx: every bound surface (see above)
       continue;
+    // rehatched-nx (2026-11-16, RenderDoc rdc9): the header as it was when the surface was bound (NoteSurfaceHeader),
+    // as the console's GPU has it; Angry Birds Trilogy rewrites the header of a bound surface before its next bind,
+    // and read at the draw its 640x360 bloom downsample went to the main target (a scaled copy in the top-left).
+    {
+      std::lock_guard lock(g_stack_headers_mutex);
+      if (const auto it = g_stack_headers.find(va); it != g_stack_headers.end()) {
+        out.va[out.count] = va;
+        out.desc[out.count] = it->second;
+        ++out.count;
+        continue;
+      }
+    }
     if (const auto *desc = GuestPtr<const d3d::SurfaceDesc>(va + sizeof(d3d::Resource))) {
       out.va[out.count] = va;
       out.desc[out.count] = *desc;
@@ -1267,8 +1295,61 @@ void CaptureStackHeaders(const u8 *device, StackHeaderSet &out) {
 
 void SetReplayStackHeaders(const StackHeaderSet *set) { g_replay_stack_headers = set; }
 
+// rehatched-nx (2026-11-16, diagnostic): see surfaces.h SeqLogSwap.
+REXCVAR_DEFINE_INT32(rehatched_diag_seq_s, 0, "Banjo/Diagnostics",
+                     "From rehatched-nx, a measurement: this many seconds after start, the game thread's order of "
+                     "render target binds (with the header's Size, SurfaceInfo, ColorInfo), clears, resolves and draw "
+                     "counts for two frames, as [seq] lines. 0 = off")
+    .lifecycle(rex::cvar::Lifecycle::kInitOnly);
+namespace {
+std::atomic<int> g_seq_frames{-1};  // -1 waiting, >0 frames left to log, 0 done
+std::atomic<uint32_t> g_seq_draws{0};
+}  // namespace
+void SeqLogSwap() {
+  static const int32_t at = REXCVAR_GET(rehatched_diag_seq_s);
+  if (at <= 0)
+    return;
+  static const auto start = std::chrono::steady_clock::now();
+  const int f = g_seq_frames.load(std::memory_order_relaxed);
+  if (f < 0) {
+    // from 'at' seconds on, the first frame after one of more than 100 draws (a level, not a menu or loading screen)
+    const uint32_t last = g_seq_draws.exchange(0, std::memory_order_relaxed);
+    if (std::chrono::steady_clock::now() - start >= std::chrono::seconds(at) && last > 100) {
+      g_seq_draws.store(0, std::memory_order_relaxed);
+      g_seq_frames.store(2, std::memory_order_relaxed);
+      RGPU_INFO("[seq] ---- frame start");
+    }
+  } else if (f > 0) {
+    SeqLogEvent("swap", 0, 0, 0);
+    g_seq_frames.store(f - 1, std::memory_order_relaxed);
+    if (f - 1 > 0)
+      RGPU_INFO("[seq] ---- frame start");
+  }
+}
+void SeqLogDraw() {
+  static const bool on = REXCVAR_GET(rehatched_diag_seq_s) > 0;
+  if (on && g_seq_frames.load(std::memory_order_relaxed) != 0)
+    g_seq_draws.fetch_add(1, std::memory_order_relaxed);
+}
+void SeqLogEvent(const char *what, u32 a, u32 b, u32 c) {
+  if (g_seq_frames.load(std::memory_order_relaxed) <= 0)
+    return;
+  const uint32_t draws = g_seq_draws.exchange(0, std::memory_order_relaxed);
+  if (draws)
+    RGPU_INFO("[seq] {} draws", draws);
+  RGPU_INFO("[seq] {} {:08X} {:08X} {:08X}", what, a, b, c);
+}
+
 void NoteSurfaceHeader(u32 surface_va) {
-  if (!StackVa(surface_va) || !banjo::renut_gpu::StackSurfaceHeadersOn())
+  if (g_seq_frames.load(std::memory_order_relaxed) > 0) {
+    if (const auto *d = GuestPtr<const d3d::SurfaceDesc>(surface_va + sizeof(d3d::Resource)))
+      SeqLogEvent("bind", surface_va, u32(d->Size), u32(d->SurfaceInfo));
+    else
+      SeqLogEvent("bind", surface_va, 0, 0);
+  }
+  // rehatched-nx: every surface (CapturedHeaderVa): the console's GPU takes a surface's layout when it is bound
+  // (SetRenderTarget / SetDepthStencilSurface write RB_SURFACE_INFO and RB_COLOR_INFO), not at each draw.
+  if (!CapturedHeaderVa(surface_va) || !banjo::renut_gpu::StackSurfaceHeadersOn())
     return;
   const auto *desc = GuestPtr<const d3d::SurfaceDesc>(surface_va + sizeof(d3d::Resource));
   if (!desc)
@@ -1287,7 +1368,9 @@ HostSurface *GetHostSurfaceLocked(u32 surface_va) {
   if (!desc)
     return nullptr;
   d3d::SurfaceDesc stack_copy;  // blur-nx (2026-11-10, port 76; its key 215: blur_renut_stack_surface_headers)
-  if (StackVa(surface_va) && banjo::renut_gpu::StackSurfaceHeadersOn()) {
+  // rehatched-nx: the operation's own copy for any captured surface (CapturedHeaderVa); the last-bound fallback below
+  // stays for the stack's (a heap header the operation did not capture is still the one to read).
+  if (CapturedHeaderVa(surface_va) && banjo::renut_gpu::StackSurfaceHeadersOn()) {
     bool found = false;
     if (const StackHeaderSet *set = g_replay_stack_headers) {  // the replayed operation's own
       for (u32 i = 0; i < set->count; ++i) {
@@ -1299,7 +1382,7 @@ HostSurface *GetHostSurfaceLocked(u32 surface_va) {
         }
       }
     }
-    if (!found) {  // a path that captured none: as last bound (counted: none is expected)
+    if (!found && StackVa(surface_va)) {  // a path that captured none: as last bound (counted: none is expected)
       std::lock_guard lock(g_stack_headers_mutex);
       if (const auto it = g_stack_headers.find(surface_va); it != g_stack_headers.end()) {
         stack_copy = it->second;
@@ -1481,6 +1564,19 @@ HostSurface *GetHostSurfaceSlow(u32 surface_va, const d3d::SurfaceDesc *desc) {
     ++g_target_users[key];
     ++g_surface_epoch;
   } else if (bound->second != key) {
+    // rehatched-nx (2026-11-16, diagnostic): a header moved to another view; the first ones are logged with the
+    // fields that make the key, and how many surfaces still use the view it left.
+    {
+      static uint32_t logged = 0;
+      if (logged < 40) {
+        ++logged;
+        const auto users = g_target_users.find(bound->second);
+        RGPU_INFO("[views] surface {:08X}: key {:016X} -> {:016X}; Size {:08X} SurfaceInfo {:08X} ColorInfo {:08X} "
+                  "Format {:08X} depth {}; the old view keeps {} other user(s)",
+                  surface_va, bound->second, key, u32(desc->Size), u32(desc->SurfaceInfo), u32(desc->ColorInfo),
+                  u32(desc->Format), depth, users == g_target_users.end() ? 0 : users->second - 1);
+      }
+    }
     ++g_surface_epoch;
     // The header was rewritten (or the VA reused without Destroy reaching
     // us): the surface is a view of other EDRAM now.

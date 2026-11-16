@@ -225,3 +225,11 @@ banjo_renut_diag_terrain = false
 renut_shadow_resolution = "1x"
 renut_ambient_occlusion = "Half"
 banjo_xma_frame_cache = false
+
+# rehatched-nx (2026-11-16, RenderDoc captures of Ryujinx in level 1-1): the game re-points one surface header between a
+# 1280-, 640- and 320-pitch view each frame. Keep the targets of every view (background lost otherwise), present from a
+# copy (the scanout hand-over showed a stale image), and gather targets for every draw (chain reuse kept the previous
+# view's target for the same address: the bloom downsample landed in the main image's corner).
+rehatched_keep_unused_targets = 2
+banjo_deko3d_scanout_handover = false
+banjo_renut_chain_reuse = false

@@ -901,6 +901,7 @@ void D3DDevice_Swap_hook(u32 device_va, u32 front_buffer, u32 /*parameters*/) {
   const uint64_t swap_ordinal = rex::latency::SwapCount();
   FlushDeferredVertices(device_va);
   SnapshotDeltasNewFrame();  // banjo-nx (2026-10-20, from sa2-nx, banjo_renut_snapshot_deltas)
+  SeqLogSwap();  // rehatched-nx (diagnostic, rehatched_diag_seq_s)
 
   // What the original does after handing the frame to the video hardware:
   // count the swap, record the frame's fence tag, and end the frame with a

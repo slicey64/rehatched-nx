@@ -1089,6 +1089,7 @@ void PrefetchDeltaLines(u32 device_va) {
 }
 
 void QueueDraw(u32 device_va, const DrawCall &call, u32 up_vertex_bytes, u32 up_index_bytes) {
+  SeqLogDraw();  // rehatched-nx (diagnostic, rehatched_diag_seq_s)
   NoteDrawer(device_va);  // blur-nx (2026-11-13, M-31's census)
   const bool deltas = DeltasOn();  // bangaio-nx (2026-10-29, ARM): its static's guard read once, not three times
   if (deltas && DeltaPrefetchOn())
@@ -1209,6 +1210,7 @@ void FlushDeferredVertices(u32 device_va) {
 
 void QueueClear(u32 device_va, u32 flags, const ClearRect *rect, const float color[4], float depth,
                 u32 stencil) {
+  SeqLogEvent("clear", flags, rect ? u32(rect->x2) : 0xFFFFFFFFu, rect ? u32(rect->y2) : 0xFFFFFFFFu);
   FlushDeferredVertices(device_va);
   RunReadyCallbacks();
   const auto *device = GuestPtr<const u8>(device_va);
@@ -1237,6 +1239,7 @@ void QueueClear(u32 device_va, u32 flags, const ClearRect *rect, const float col
 void QueueResolve(u32 device_va, u32 flags, const ClearRect *source_rect, u32 dest_texture_va,
                   i32 dest_x, i32 dest_y, u32 dest_level, u32 dest_slice,
                   const float clear_color[4], float clear_depth, u32 clear_stencil) {
+  SeqLogEvent("resolve", dest_texture_va, flags, source_rect ? u32(source_rect->x2) : 0xFFFFFFFFu);
   FlushDeferredVertices(device_va);
   RunReadyCallbacks();
   const auto *device = GuestPtr<const u8>(device_va);

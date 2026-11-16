@@ -216,6 +216,12 @@ HostSurface *GetHostSurfaceLocked(u32 surface_va);
 // blur-nx (2026-11-10, port 76; its key 215: blur_renut_stack_surface_headers): the game binds the surface at surface_va
 // (any game thread): a header on the stack is kept as it is now, for the render thread's later reads.
 void NoteSurfaceHeader(u32 surface_va);
+// rehatched-nx (2026-11-16, diagnostic, rehatched_diag_seq_s): the game thread's own order of target binds, clears,
+// resolves and draws for two frames, as "[seq]" lines. SeqLogSwap at each Swap; SeqLogDraw at each queued draw;
+// SeqLogEvent for a bind, clear or resolve (it first writes the draws counted since the last event).
+void SeqLogSwap();
+void SeqLogDraw();
+void SeqLogEvent(const char *what, u32 a, u32 b, u32 c);
 // blur-nx (2026-11-10, port 76; its key 215): the headers of the stack surfaces bound as render targets and depth when a
 // draw, clear or resolve is queued or recorded (game thread), and the render thread's use of them while it replays that
 // operation: the game thread runs ahead, and a stack slot can hold another surface's header by the time the operation
