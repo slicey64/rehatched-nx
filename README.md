@@ -4,7 +4,7 @@
   <img src="sample/classic.png" width="32%" alt="Angry Birds Classic" />
 </p>
 
-# rehatched-nx
+<h1 style="text-align: center;">rehatched-nx</h1>
 
 <p align="center">
   <strong>Native Nintendo Switch port of Angry Birds Trilogy (Xbox 360) via static recompilation</strong>
