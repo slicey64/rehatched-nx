@@ -11,7 +11,6 @@
 </p>
 
 <p align="center">
-  <a href="#how-it-came-to-be">Origin</a> •
   <a href="#how-the-port-works">Architecture</a> •
   <a href="#how-to-build">Building</a> •
   <a href="#running-on-switch">Running</a> •
