@@ -25,36 +25,35 @@ constexpr u32 kPendingStates = 2;   // the register packets
 constexpr u32 kPendingFetch = 3;    // fetch constants, tessellation, points
 constexpr u32 kPendingMisc = 4;     // m_MiscPacket and friends
 
-// Render state storage in the CDevice-private area (TU3: 8 bytes further on
-// than the first release from 0x2E30 to 0x3390, 4 from 0x2AC0).
-constexpr u32 kBlendState = 0x2E40;       // D3D blend: src 0-4, op 5-7, dest 8-12, alpha at 16+ (katamari-nx: 0x2E50->0x2E40)
-constexpr u32 kBlendFlags = 0x2E44;       // 31 blend enable, 30 separate alpha, HiZ fields (katamari-nx: 0x2E54->0x2E44)
-constexpr u32 kScissorTestEnable = 0x2E48;  // katamari-nx: 0x2E58->0x2E48
-constexpr u32 kColorWriteEnable = 0x2E4C;  // [4] (katamari-nx: 0x2E5C->0x2E4C)
-constexpr u32 kZEnable = 0x2E5C;  // katamari-nx: 0x2E6C->0x2E5C
-constexpr u32 kStencilEnable = 0x2E60;  // katamari-nx: 0x2E70->0x2E60
-constexpr u32 kPointSpriteEnable = 0x2E64;  // katamari-nx: 0x2E74->0x2E64
-constexpr u32 kPointSize = 0x2E6C;  // katamari-nx: 0x2E7C->0x2E6C
-constexpr u32 kPointSizeMin = 0x2E70;  // katamari-nx: 0x2E80->0x2E70
-constexpr u32 kPointSizeMax = 0x2E74;  // katamari-nx: 0x2E84->0x2E74
-constexpr u32 kHighPrecisionBlend = 0x2EF4;  // [4] (katamari-nx: 0x2F04->0x2EF4)
-constexpr u32 kPresentInterval = 0x3504;  // katamari-nx: 0x351C->0x3504
-constexpr u32 kBehaviorFlags2 = 0x56F8;  // katamari-nx: 0x5DAC->0x56F8
+// Render state storage in the CDevice-private area
+constexpr u32 kBlendState = 12280;          // 0x2FF8
+constexpr u32 kBlendFlags = 12284;          // 0x2FFC
+constexpr u32 kScissorTestEnable = 12288;   // 0x3000
+constexpr u32 kColorWriteEnable = 12292;    // 0x3004 [4]
+constexpr u32 kZEnable = 12308;             // 0x3014
+constexpr u32 kStencilEnable = 12312;       // 0x3018
+constexpr u32 kPointSpriteEnable = 12316;   // 0x301C
+constexpr u32 kPointSize = 12324;           // 0x3024
+constexpr u32 kPointSizeMin = 12328;        // 0x3028
+constexpr u32 kPointSizeMax = 12332;        // 0x302C
+constexpr u32 kHighPrecisionBlend = 12408;  // 0x3078 [4]
+constexpr u32 kPresentInterval = 14000;     // 0x36B0
+constexpr u32 kBehaviorFlags2 = 24392;      // 0x5F48
 // Sampler state storage, a byte per sampler.
-constexpr u32 kMaxAnisotropy = 0x2E8C;  // katamari-nx: 0x2E9C->0x2E8C
-constexpr u32 kMaxMipLevel = 0x2EA6;  // katamari-nx: 0x2EB6->0x2EA6
-constexpr u32 kMinMipLevel = 0x2EC0;  // katamari-nx: 0x2ED0->0x2EC0
-constexpr u32 kZFilter = 0x2EDA;  // bit 0 mag, 1 min, 2 separate Z filtering (katamari-nx: 0x2EEA->0x2EDA)
+constexpr u32 kMaxAnisotropy = 10864;       // 0x2A70
+constexpr u32 kMaxMipLevel = 12356;         // 0x3044
+constexpr u32 kMinMipLevel = 12382;         // 0x305E
+constexpr u32 kZFilter = 10890;             // 0x2A8A
 // Viewport (SetViewport's arguments, clamped) and the register image values.
-constexpr u32 kViewport = 0x3160;  // x, y, width, height, min z, max z, 0 (katamari-nx: 0x3170->0x3160)
+constexpr u32 kViewport = 13024;            // 0x32E0
 constexpr u32 kVportXScale = 0x2908;
 constexpr u32 kVportZScale = 0x2918;
-constexpr u32 kStreamDeclStrides = 0x2E30;  // u8[16] (katamari-nx: 0x2E40->0x2E30)
-constexpr u32 kVertexDeclaration = 0x2E24;  // katamari-nx: 0x2E30->0x2E24
-constexpr u32 kVertexShader = 0x3190;  // katamari-nx: 0x31A0->0x3190
-constexpr u32 kPixelShader = 0x318C;  // katamari-nx: 0x319C->0x318C
-constexpr u32 kGprAllocation = 0x2AA8;
-constexpr u32 kScreenExtentQueryMode = 0x2AA4;
+constexpr u32 kStreamDeclStrides = 12264;   // 0x2FE8 u8[16]
+constexpr u32 kVertexDeclaration = 13072;   // 0x3310
+constexpr u32 kVertexShader = 13068;        // 0x330C
+constexpr u32 kPixelShader = 12240;         // 0x2FD0
+constexpr u32 kGprAllocation = 11048;       // 0x2B28
+constexpr u32 kScreenExtentQueryMode = 11044; // 0x2B24
 
 constexpr float kInv255 = 0.003921568859368563f;  // flt_82000D08
 
@@ -727,9 +726,9 @@ constexpr SamplerStateFn kSamplerStateFns[kSamplerStates] = {
     SsPointBorderEnable,    // 19
 };
 
-// N&B's state tables: {getter, setter, default} per state.
-constexpr u32 kRenderStateTable = 0x82AD8E48;  // katamari-nx: 0x82D8A948->0x82AD8E48
-constexpr u32 kSamplerStateTable = 0x82AD9308;  // katamari-nx: 0x82D8AE28->0x82AD9308
+// State tables: {getter, setter, default} per state.
+constexpr u32 kRenderStateTable = 0x8273C278;
+constexpr u32 kSamplerStateTable = 0x8273C738;
 constexpr u32 kTextureSamplers = 26;
 
 u32 TableWord(u32 table, u32 index, u32 field) {
@@ -1363,7 +1362,7 @@ namespace {
 
 // Per D3DFORMAT (low 6 bits) its format description; 0xF00 marks a float
 // depth format (word_82005200).
-constexpr u32 kFormatTable = 0x820FA9D0;  // katamari-nx: 0x82005200->0x820FA9D0
+constexpr u32 kFormatTable = 0x8202C448;
 // The register packets between RB_COPY_CONTROL and RB_COPY_DEST_INFO.
 constexpr u32 kCopyControl = 0x2A18;
 constexpr u32 kCopyDestInfo = 0x2A24;

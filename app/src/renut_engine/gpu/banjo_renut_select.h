@@ -27,9 +27,9 @@ inline bool Active() {
 
 }  // namespace banjo::renut_gpu
 
-// rehatched-nx: Renut's hooks are compiled but unregistered when REHATCHED_RENUT_HOOKS is 0.
+// rehatched-nx: Renut's hooks are enabled for XDK 2.0.9407.0 Direct3D.
 #ifndef REHATCHED_RENUT_HOOKS
-#define REHATCHED_RENUT_HOOKS 0
+#define REHATCHED_RENUT_HOOKS 1
 #endif
 // a hook not placed in this game: the handler compiles, nothing is registered.
 #define BANJO_RENUT_UNHOOKED_HOOK(subroutine, function) \
