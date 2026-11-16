@@ -21,6 +21,9 @@
 
 Unlike traditional emulation (which interprets or JIT-compiles guest machine instructions and simulates GPU microarchitecture in real time), ReHatched-NX translates the game's executable ahead-of-time into high-performance C++ using the [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk). The game runs natively at full speed on the Switch hardware with lower latency, full frame pacing, and drastically reduced power consumption compared to an emulator.
 
+### Note:
+This was built on CachyOS linux. I have not tested it on Windows, macOS or any other distribution. If you need support for any of these operating systems, open up an issue on GitHub, or contact me some way...
+
 > [!IMPORTANT]
 > **No game assets or proprietary code are contained in this repository.** To build and play ReHatched-NX, you must provide your own legally obtained copy of *Angry Birds Trilogy* for Xbox 360. All code generation, asset extraction, and shader translation steps occur locally on your machine.
 
