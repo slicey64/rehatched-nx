@@ -950,13 +950,16 @@ void SetTilingExtentLocked(uint32_t width, uint32_t height) {
 // 640x360 and a 1280x720 view of EDRAM every frame. Each rewrite left the other view's target without users, and it was
 // released at once: built again the next frame (contents undefined on the console's GPU, discarded), then grown by
 // rr6_depth_covers_colour under the 1280x720 colour target (3619 grows in 105 s). The level backgrounds drew black and
-// flashed, and the frame paid a new target or two. With the key on, a target left without users stays: the next view
-// change finds it with its contents, and sasrt_retire_idle_targets_frames / sasrt_retire_current_idle_frames release it
-// once it is idle, as any other.
-REXCVAR_DEFINE_BOOL(rehatched_keep_unused_targets, true, "Banjo/Enhancements",
-                    "From rehatched-nx: a render target whose surface header moved to another view of EDRAM is kept "
-                    "for that view's return (released when idle, as other targets) instead of at once. Off: as before "
-                    "(Angry Birds Trilogy's depth surface was remade and grown every frame)")
+// flashed, and the frame paid a new target or two. With the key at 1, a depth target left without users stays: the next
+// view change finds it with its contents, and sasrt_retire_idle_targets_frames / sasrt_retire_current_idle_frames
+// release it once it is idle, as any other. Colour targets go at once as before: kept, a stale colour view was picked
+// over its EDRAM alias and whole layers of a frame went missing (2 = every target, the first form: 54 % of the frames
+// in a Ryujinx burst A/B flashed, against 8 % with the key off; tools/ryu_flicker_ab.sh).
+REXCVAR_DEFINE_INT32(rehatched_keep_unused_targets, 1, "Banjo/Enhancements",
+                     "From rehatched-nx: a render target whose surface header moved to another view of EDRAM is kept "
+                     "for that view's return (released when idle) instead of at once: 1 = depth targets (the default), "
+                     "2 = every target, 0 = none (Angry Birds Trilogy's depth surface was remade and grown every frame)")
+    .range(0, 2)
     .lifecycle(rex::cvar::Lifecycle::kInitOnly);
 
 void UnuseTarget(uint64_t key) {
@@ -966,10 +969,11 @@ void UnuseTarget(uint64_t key) {
   g_target_users.erase(users);
   ++g_surface_epoch;
   ++g_sasrt_table_epoch;  // sasrt-nx (2026-11-09, sasrt_rt_restore_candidates; port 54)
-  static const bool keep = REXCVAR_GET(rehatched_keep_unused_targets);
-  if (keep)
+  static const int32_t keep = REXCVAR_GET(rehatched_keep_unused_targets);
+  auto it = g_targets.find(key);
+  if (keep >= 2 || (keep == 1 && it != g_targets.end() && it->second && it->second->depth))
     return;
-  if (auto it = g_targets.find(key); it != g_targets.end()) {
+  if (it != g_targets.end()) {
     RetireTarget(*it->second);
     g_targets.erase(it);
   }
