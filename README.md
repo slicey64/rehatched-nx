@@ -21,6 +21,8 @@
 
 Unlike traditional emulation (which interprets or JIT-compiles guest machine instructions and simulates GPU microarchitecture in real time), ReHatched-NX translates the game's executable ahead-of-time into high-performance C++ using the [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk). The game runs natively at full speed on the Switch hardware with lower latency, full frame pacing, and drastically reduced power consumption compared to an emulator.
 
+This technically *does* have support for Angry Birds Space like the Re-Hatched collection supports. I didn't add it because I didn't feel like integrating another 6.8gb ISO file into this project. I left some functionality there; the calls and graphics should not be too far off from the other 3 games from Angry Birds Trilogy. It just isn't built or included. If you would like to compile it as well, my guess is it would either have to be a separate .NRO file, or you would have to make a launcher app to switch between the two. I don't care enough for it. If you do get it working, please do not hesitate to let me know, I'd be interested to see it working.
+
 ### Note:
 This was built on CachyOS linux. I have not tested it on Windows, macOS or any other distribution. If you need support for any of these operating systems, open up an issue on GitHub, or contact me some way...
 
