@@ -51,36 +51,6 @@ Once the title screen booted, real-hardware testing and Ryujinx/RenderDoc profil
 
 Detailed engineering logs and memory offsets are documented in [docs/rehatched-notes.md](docs/rehatched-notes.md).
 
----
-
-## How the Port Works
-
-```mermaid
-flowchart TD
-    subgraph Offline ["1. Offline Ahead-of-Time Translation"]
-        XEX["Xbox 360 default.xex"] --> REX["ReXGlue Compiler"]
-        REX --> CPP["Generated C++ Translation Units (app/generated)"]
-        CPP --> POST["Post-Codegen Optimizations (post_codegen.py)"]
-        
-        SHADERS["Xenos Shader Containers"] --> XR["XenosRecomp (Microcode -> SPIR-V)"]
-        XR --> SC["SPIRV-Cross (SPIR-V -> GLSL)"]
-        SC --> OPT["GLSL Optimizer (deko3d_glsl_opt.py)"]
-        OPT --> UAM["uam Validation / Assembly"]
-        UAM --> PKG["deko3d Shader Package (embedded in NRO)"]
-    end
-
-    subgraph Runtime ["2. Nintendo Switch Execution"]
-        POST --> NRO["rehatched-nx.nro (devkitA64 clang)"]
-        PKG --> NRO
-        
-        NRO --> CPU["Guest PowerPC Execution (Native AArch64 / LTO)"]
-        NRO --> D3D["reNut Direct3D 9 Translation Layer"]
-        D3D --> PLUME["plume deko3d Backend"]
-        PLUME --> GPU["Switch Maxwell Tegra GPU"]
-        NRO --> AUDIO["ReXGlue Audio (FFmpeg XMA Decoding)"]
-    end
-```
-
 ### 1. CPU Recompilation (ReXGlue)
 The guest PowerPC 64-bit code is disassembled and translated ahead-of-time into C++ functions. A multi-stage post-codegen pipeline ([tools/post_codegen.py](tools/post_codegen.py)) performs:
 - **Guest CAS & Atomic Rewriting:** Translates PowerPC `lwarx`/`stwcx` reservation idioms into native host atomics.
