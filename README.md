@@ -1,7 +1,7 @@
 <p align="center">
   <img src="sample/rio.png" width="32%" alt="Angry Birds Rio" />
   <img src="sample/title.png" width="32%" alt="Angry Birds Trilogy Title Screen" />
-  <img src="sample/classic.png" width="32%" alt="Angry Birds Classic />
+  <img src="sample/classic.png" width="32%" alt="Angry Birds Classic" />
 </p>
 
 # rehatched-nx
