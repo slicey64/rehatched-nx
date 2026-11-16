@@ -623,6 +623,16 @@ BANJO_RENUT_HOOK(sub_8228A0E0, D3DDevice_BeginVertices_hook);  // D3DDevice_Begi
 BANJO_RENUT_HOOK(sub_8228DC10, D3DDevice_ClearF_hook);  // D3DDevice_ClearF
 BANJO_RENUT_HOOK(sub_8228DD48, D3DDevice_Clear_hook);  // D3DDevice_Clear
 BANJO_RENUT_HOOK(sub_8228CA80, D3DDevice_Resolve_hook);  // D3DDevice_Resolve
+// rehatched-nx: the internal resolve sub_8228B928, which the game's renderer also calls directly (sub_824891A0,
+// sub_8249EE80, sub_824A05D0; resolves into its own render targets: the level backgrounds were black). Its arguments,
+// from Resolve's wrapper: r3 device, r4 flags, r5 pSourceRect, r6 and r7 extras the wrapper passes as 0 (r6 a value it
+// writes in a PM4 register packet, r7 a flag), r8 pDestTexture, r9 pDestPoint, r10 DestLevel; on the caller's stack
+// +84 DestSliceOrFace, +92 pClearColor, +108 ClearStencil, +116 pParameters; ClearZ in f1.
+BANJO_RENUT_HOOK_RAW(sub_8228B928) {
+  const u32 sp = ctx.r1.u32;
+  D3DDevice_Resolve_hook(ctx.r3.u32, ctx.r4.u32, ctx.r5.u32, ctx.r8.u32, ctx.r9.u32, ctx.r10.u32, LoadU32(sp + 84),
+                         LoadU32(sp + 92), ctx.f1.f64, 0, LoadU32(sp + 108), LoadU32(sp + 116));
+}
 BANJO_RENUT_UNHOOKED_HOOK_SHARED(sub_82246798, D3DDevice_BeginTiling_hook);
 BANJO_RENUT_UNHOOKED_HOOK(sub_821E17C0, D3DDevice_EndTiling_hook);
 BANJO_RENUT_HOOK_RAW(sub_82281250) {

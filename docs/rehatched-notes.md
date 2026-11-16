@@ -76,3 +76,20 @@ Open:
 - InsertCallback and BeginRingManual of this XDK are not identified.
 - 24 of the base's resource hooks (Lock*, GetDesc, layouts) and some state hooks are still at Katamari addresses
   (unhooked); the guest's own versions run.
+
+### Console run 1 (2026-11-16): fixes
+
+The console ran the title screen and level 1 (no audio issue reported). Three faults, fixed:
+- **Crash at the end of level 1** (logs/rex/rex_crash.log: a read of guest 0x70110001, the main stack's top, in
+  `sub_8264B660`): the game's mesh code `sub_8261DF30` asks `D3DVertexDeclaration_GetDeclaration` (`sub_8227AE00`,
+  unhooked) for a declaration's elements and searches them for a usage. The declarations are Renut's records, so the
+  guest function copied nothing and the zeroed array had no D3DDECL_END: the search ran off the stack. Now hooked
+  (shader.cpp), answering from the record as the original does (count + 1, D3DDECL_END from 0x8202E394).
+- **Black, flickering level backgrounds**: the game's renderer calls the internal resolve `sub_8228B928` directly, so
+  those resolves never reached the renderer. Now a raw hook maps its arguments onto Resolve's hook (draw.cpp). The PC's
+  attract-mode levels (jungle, mine, city) draw their backgrounds (out/pc_runs/level1c); the console has to confirm.
+- **A/B and X/Y swapped**: the shipped toml had `input_xbox_layout = true` (by position). Now `false` (by letter).
+
+PC test automation: `input_script` on the command line keeps only its first press (the cvar parser splits at the
+commas); put it in `app/out/pc_host/rehatched.toml` instead (and remove it after). The PC build leaves a 4.8 GB
+`/dev/shm/xenia_memory_*` file behind when stopped by force: remove them after runs (21 of them starved Ryujinx).

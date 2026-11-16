@@ -835,6 +835,32 @@ void D3DVertexShader_Bind_flags_hook(u32 shader_va, u32 /*flags*/, u32 declarati
   D3DVertexShader_Bind_hook(shader_va, declaration_va, stream_strides);
 }
 
+// rehatched-nx: void D3DVertexDeclaration_GetDeclaration(D3DVertexDeclaration*, D3DVERTEXELEMENT9 *pElements,
+// UINT *pNumElements) (sub_8227AE00). The original copies min(count, *pNumElements) elements from the declaration's
+// +52 (count at +24), adds D3DDECL_END when there is room (the 12 bytes at 0x8202E394) and stores count + 1. Our
+// declarations are records whose guest block holds no elements: unhooked, the game's mesh code (sub_8261DF30) got an
+// array of zeros with no end marker and its element search (sub_8264B660) ran off the stack at the end of level 1.
+void D3DVertexDeclaration_GetDeclaration_hook(u32 declaration_va, u32 elements_va, u32 count_va) {
+  auto *count_word = GuestPtr<be_u32>(count_va);
+  const auto *declaration =
+      FindRecord<VertexDeclarationRecord>(declaration_va, RecordKind::VertexDeclaration);
+  if (!count_word || !declaration)
+    return;
+  const u32 have = u32(declaration->elements.size());
+  const u32 room = u32(*count_word);
+  *count_word = have + 1;
+  auto *out = elements_va ? GuestPtr<GuestVertexElement>(elements_va) : nullptr;
+  if (!out)
+    return;
+  const u32 copied = std::min(have, room);
+  for (u32 i = 0; i < copied; ++i)
+    out[i] = declaration->elements[i];
+  if (room > have) {
+    if (const auto *end = GuestPtr<const GuestVertexElement>(0x8202E394u))
+      out[have] = *end;
+  }
+}
+
 } // namespace
 
 BANJO_RENUT_HOOK(sub_8227B2F8, D3DDevice_CreateVertexShader_hook);  // D3DDevice_CreateVertexShader
@@ -843,6 +869,7 @@ BANJO_RENUT_HOOK(sub_8227B110, D3DDevice_CreatePixelShader_hook);  // D3DDevice_
 // 56 + 12 n bytes, five callers in the game). sub_8227B6A0, hooked here before, is the EDRAM allocator CreateSurface
 // calls (best fit in a free list, the offset through r4): not a D3D entry point.
 BANJO_RENUT_HOOK(sub_8227AD80, D3DDevice_CreateVertexDeclaration_hook);  // D3DDevice_CreateVertexDeclaration
+BANJO_RENUT_HOOK(sub_8227AE00, D3DVertexDeclaration_GetDeclaration_hook);  // D3DVertexDeclaration_GetDeclaration
 BANJO_RENUT_HOOK(sub_82280DE8, D3DVertexShader_Bind_flags_hook);  // D3DVertexShader_Bind (with Flags and Index)
 BANJO_RENUT_HOOK(sub_8227B200, XGRegisterVertexShader_hook);  // XGRegisterVertexShader
 BANJO_RENUT_UNHOOKED_HOOK(sub_826375A0, XGRegisterPixelShader_hook);  // XGRegisterPixelShader
