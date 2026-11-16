@@ -38,6 +38,8 @@ This was built on CachyOS linux. I have not tested it on Windows, macOS or any o
 
 Detailed engineering logs and memory offsets are documented in [docs/rehatched-notes.md](docs/rehatched-notes.md).
 
+# How the port works
+
 ### 1. CPU Recompilation (ReXGlue)
 The guest PowerPC 64-bit code is disassembled and translated ahead-of-time into C++ functions. A multi-stage post-codegen pipeline ([tools/post_codegen.py](tools/post_codegen.py)) performs:
 - **Guest CAS & Atomic Rewriting:** Translates PowerPC `lwarx`/`stwcx` reservation idioms into native host atomics.
