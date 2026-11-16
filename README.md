@@ -207,7 +207,7 @@ Settings can be adjusted in `rehatched.toml`:
 
 ## Credits
 
-ReHatched-NX stands on the shoulders of years of reverse engineering, recompilation tooling, and homebrew infrastructure:
+This port wouldn't be here without:
 
 - **[slicey64](https://github.com/slicey64)** — Author of the ReHatched-NX port: XDK 2.0.9407.0 hook reverse engineering, EDRAM surface view retention fixes, Linux build toolchain support, Ryujinx/RenderDoc test suite.
 - **[TekRantGaming](https://github.com/TekRantGaming/angry-birds-re-hatched-collection)** — The [Angry Birds Re-Hatched Collection](https://github.com/TekRantGaming/angry-birds-re-hatched-collection) PC recompilation project.
