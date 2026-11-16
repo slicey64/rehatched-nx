@@ -946,6 +946,19 @@ void SetTilingExtentLocked(uint32_t width, uint32_t height) {
 
 // A surface stops using its target (destroyed, or its header now describes
 // another view); the last user retires it.
+// rehatched-nx (2026-11-16, console run 2): Angry Birds Trilogy rewrites one depth surface header (0x4000A7D0) between a
+// 640x360 and a 1280x720 view of EDRAM every frame. Each rewrite left the other view's target without users, and it was
+// released at once: built again the next frame (contents undefined on the console's GPU, discarded), then grown by
+// rr6_depth_covers_colour under the 1280x720 colour target (3619 grows in 105 s). The level backgrounds drew black and
+// flashed, and the frame paid a new target or two. With the key on, a target left without users stays: the next view
+// change finds it with its contents, and sasrt_retire_idle_targets_frames / sasrt_retire_current_idle_frames release it
+// once it is idle, as any other.
+REXCVAR_DEFINE_BOOL(rehatched_keep_unused_targets, true, "Banjo/Enhancements",
+                    "From rehatched-nx: a render target whose surface header moved to another view of EDRAM is kept "
+                    "for that view's return (released when idle, as other targets) instead of at once. Off: as before "
+                    "(Angry Birds Trilogy's depth surface was remade and grown every frame)")
+    .lifecycle(rex::cvar::Lifecycle::kInitOnly);
+
 void UnuseTarget(uint64_t key) {
   auto users = g_target_users.find(key);
   if (users == g_target_users.end() || --users->second)
@@ -953,6 +966,9 @@ void UnuseTarget(uint64_t key) {
   g_target_users.erase(users);
   ++g_surface_epoch;
   ++g_sasrt_table_epoch;  // sasrt-nx (2026-11-09, sasrt_rt_restore_candidates; port 54)
+  static const bool keep = REXCVAR_GET(rehatched_keep_unused_targets);
+  if (keep)
+    return;
   if (auto it = g_targets.find(key); it != g_targets.end()) {
     RetireTarget(*it->second);
     g_targets.erase(it);

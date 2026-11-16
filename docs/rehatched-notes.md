@@ -93,3 +93,13 @@ The console ran the title screen and level 1 (no audio issue reported). Three fa
 PC test automation: `input_script` on the command line keeps only its first press (the cvar parser splits at the
 commas); put it in `app/out/pc_host/rehatched.toml` instead (and remove it after). The PC build leaves a 4.8 GB
 `/dev/shm/xenia_memory_*` file behind when stopped by force: remove them after runs (21 of them starved Ryujinx).
+
+### Console run 2 (2026-11-16): black level backgrounds
+
+Console captures (out/console_2): the foreground drew, every background layer was black. The log had
+"Depth target 4000A7D0: 640x360 grown to 1280x720" 3619 times in 105 s: the game rewrites that depth surface's header
+between a 640x360 and a 1280x720 view of EDRAM every frame; `UnuseTarget` released the view left without users at
+once, so each frame built it again (undefined contents on the console's GPU, zeroed in Ryujinx, which is why the
+emulator looked right) and rr6_depth_covers_colour grew it again. New key `rehatched_keep_unused_targets` (on): such a
+target is kept and released by the idle retirement. Ryujinx, same gameplay scene: 1 grow in 150 s (2454 before), the
+GPU region stops growing, 60 fps. A fix for the ultimate base (any game that re-points a header): to hand off.
