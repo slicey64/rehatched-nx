@@ -50,3 +50,8 @@ pgo/*
 # 2026-11-11 (port 81): the in-place copies' form has a profile of its own (CMake BANJO_PGO_DIR_IN_PLACE), kept the same way
 pgo-inplace/*
 !pgo-inplace/*.gcda
+
+# Icons are the user's own local images (copyrighted artwork): kept on disk, never committed
+tools/switch/icon/
+app/icon/app.ico
+app/icon/app.aps
