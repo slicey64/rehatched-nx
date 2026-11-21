@@ -257,7 +257,7 @@ public:
     }
 
     // A game_root folder next to the executable is used when no path was given.
-    // On the Switch that is sdmc:/switch/katamari-nx/game_root (the extracted disc).
+    // On the Switch that is sdmc:/switch/rehatched-nx/game_root (the extracted disc).
     void OnConfigurePaths(rex::PathConfig& paths) override {
 #if defined(REHATCHED_BUILTIN_CONFIG)
         // The player's settings file. Not renut.toml: the test builds' full one, left on an SD card, would override

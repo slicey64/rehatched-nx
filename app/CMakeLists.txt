@@ -248,6 +248,13 @@ if(REXGLUE_PLATFORM_SWITCH AND TARGET rexcore)
     target_compile_definitions(rexcore PRIVATE REX_SWITCH_FALLBACK_EXE="/switch/rehatched-nx/rehatched-nx.nro")
 endif()
 
+# The host tools have .exe names only on a Windows host (Linux and macOS: no suffix).
+if(CMAKE_HOST_WIN32)
+    set(BANJO_HOST_EXE ".exe")
+else()
+    set(BANJO_HOST_EXE "")
+endif()
+
 # banjo-nx (2026-10-16): Renut's Direct3D-level renderer as a second renderer, chosen at boot (banjo_renderer = "renut";
 # cmake/banjo_renut_gpu.cmake, docs/renut-renderer-port.md). OFF builds banjo-nx's own renderer only.
 option(BANJO_RENUT_RENDERER "Build Renut's native renderer in (banjo_renderer = renut)" ON)
@@ -774,7 +781,7 @@ endif()
 # SPIR-V initializers of the native renderer's EDRAM transfer / utility shaders (src/me/masseffect/shaders), compiled
 # on the host with glslangValidator (tools/build_glslang.bat builds it from the SDK's glslang). For the Switch build
 # the same host tool is used: SPIR-V is platform independent.
-set(BANJO_GLSLANG_VALIDATOR "${CMAKE_CURRENT_SOURCE_DIR}/../out/glslang/StandAlone/glslangValidator.exe"
+set(BANJO_GLSLANG_VALIDATOR "${CMAKE_CURRENT_SOURCE_DIR}/../out/glslang/StandAlone/glslangValidator${BANJO_HOST_EXE}"
     CACHE FILEPATH "Host glslangValidator")
 set(BANJO_GENERATED_SHADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated-shaders")
 set(BANJO_EDRAM_SHADER_INCLUDES)
