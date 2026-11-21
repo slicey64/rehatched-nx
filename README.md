@@ -6,231 +6,183 @@
 
 <h1 align="center">rehatched-nx</h1>
 
-<p align="center">
-  <strong>Native Nintendo Switch port of Angry Birds Trilogy (Xbox 360) via static recompilation</strong>
-</p>
+<p align="center">A Nintendo Switch port of Angry Birds Trilogy for the Xbox 360</p>
 
-<p align="center">
-  <a href="#how-the-port-works">Architecture</a> •
-  <a href="#how-to-build">Building</a> •
-  <a href="#running-on-switch">Running</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#licensing--legal">Licensing</a>
-</p>
+This is a Switch port of the Xbox 360 version of Angry Birds Trilogy (Classic, Seasons and Rio). It's a static
+recompilation, so the game's PowerPC code gets translated to ARM C++ ahead of time and compiled into a normal `.nro`. It
+isn't an emulator. NO GAME FILES ARE INCLUDED! You need your own copy of the game, and everything made from it is made on
+your own computer.
 
----
+## Where it's at
 
-## Overview
+It works on the Switch. The screenshots up top are straight off my console. The title screen, the menus and the
+levels all play, with the backgrounds drawn, and it runs on PC (Linux, Vulkan) at 60fps too.
 
-**ReHatched-NX** is a native Nintendo Switch port of **Angry Birds Trilogy** (Xbox 360, Title ID `415608E4`, Media ID `1A15DA04`). Utilizing the PC static recompilation foundation of Angry Birds Trilogy from the [Re-Hatched Collection](https://github.com/TekRantGaming/angry-birds-re-hatched-collection) by TekRantGaming, this project translates the PowerPC guest executable into native 64-bit ARM code and pairs it with a Direct3D-level translation layer running on the Switch's low-overhead **deko3d** graphics API.
+The first console runs turned up three bugs, all fixed now:
+- a crash at the end of level 1 (the game asks the renderer for a vertex declaration's elements, and it didn't have an
+  answer)
+- black level backgrounds (the game resolves through an internal function the renderer didn't hook, and it keeps
+  re-pointing one of its depth surfaces)
+- A/B and X/Y being swapped
 
-Unlike traditional emulation (which interprets or JIT-compiles guest machine instructions and simulates GPU microarchitecture in real time), ReHatched-NX translates the game's executable ahead-of-time into high-performance C++ using the [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk). The game runs natively at full speed on the Switch hardware with lower latency, full frame pacing, and drastically reduced power consumption compared to an emulator.
+All the details, addresses and test runs are in [docs/rehatched-notes.md](docs/rehatched-notes.md).
 
-This technically *does* have support for Angry Birds Space like the Re-Hatched collection supports. I didn't add it because I didn't feel like integrating another 6.8gb ISO file into this project. I left some functionality there; the calls and graphics should not be too far off from the other 3 games from Angry Birds Trilogy. It just isn't built or included. If you would like to compile it as well, my guess is it would either have to be a separate .NRO file, or you would have to make a launcher app to switch between the two. I don't care enough for it. If you do get it working, please do not hesitate to let me know, I'd be interested to see it working.
+This technically *does* have support for Angry Birds Space like the Re-Hatched collection supports. I didn't add it
+because I didn't feel like integrating another 6.8gb ISO file into this project. I left some functionality there; the
+calls and graphics should not be too far off from the other 3 games from Angry Birds Trilogy. It just isn't built or
+included. If you would like to compile it as well, my guess is it would either have to be a separate .NRO file, or you
+would have to make a launcher app to switch between the two. I don't care enough for it. If you do get it working,
+please do not hesitate to let me know, I'd be interested to see it working.
 
-### Note:
-This was built on CachyOS linux. I have not tested it on Windows, macOS or any other distribution. If you need support for any of these operating systems, open up an issue on GitHub, or contact me some way...
+## What you need
 
-> [!IMPORTANT]
-> **No game assets or proprietary code are contained in this repository.** To build and play ReHatched-NX, you must provide your own legally obtained copy of *Angry Birds Trilogy* for Xbox 360. All code generation, asset extraction, and shader translation steps occur locally on your machine.
+- Linux. I built it on CachyOS and haven't tried anything else.
+- clang, cmake, ninja and Python 3, plus `pip install xxhash pillow`
+- [devkitPro](https://devkitpro.org/wiki/Getting_Started) with the Switch packages:
+  `sudo dkp-pacman -S switch-dev switch-portlibs deko3d uam`
+- Your own Angry Birds Trilogy disc image (title ID `415608E4`)
+- A Switch with custom firmware (Atmosphère) to actually play it
 
----
+## Before the first build
 
-Detailed engineering logs and memory offsets are documented in [docs/rehatched-notes.md](docs/rehatched-notes.md).
+**DXC.** The shader translator needs Microsoft's DXC, and only its headers are in the repo. Clone
+[renderbag/dxc-bin](https://github.com/renderbag/dxc-bin) and copy `bin/x64/dxc-linux` and `lib/x64/libdxcompiler.so`
+into the same folders under `app/thirdparty/reblue-XenosRecomp/thirdparty/dxc-bin/`.
 
-# How the port works
+**The host tools.** Install SPIRV-Cross from your package manager (`spirv-cross` on Arch), then build glslangValidator
+and uam:
 
-### 1. CPU Recompilation (ReXGlue)
-The guest PowerPC 64-bit code is disassembled and translated ahead-of-time into C++ functions. A multi-stage post-codegen pipeline ([tools/post_codegen.py](tools/post_codegen.py)) performs:
-- **Guest CAS & Atomic Rewriting:** Translates PowerPC `lwarx`/`stwcx` reservation idioms into native host atomics.
-- **Float Control Flow (CG-13):** Eliminates redundant `msr fpcr` state-switch instructions across scalar and vector code paths by leveraging unified host flush mode.
-- **Register Liveness & Native Shards:** Inlines hot guest leaf functions and optimizes register assignments to reduce stack spilling.
-
-### 2. Graphics Pipeline (reNut + plume + deko3d)
-Rather than emulating the Xbox 360's custom Xenos GPU (which would incur prohibitive overhead on the Switch's 1.0 GHz Cortex-A57 CPU), ReHatched-NX uses a high-level API translation model:
-- Direct3D 9 calls from the game are intercepted by reNut.
-- reNut interacts with **plume**, an abstraction layer that targets Nintendo Switch's proprietary **deko3d** graphics library.
-- By binding directly to deko3d, draw commands are submitted to the hardware command queue with minimal driver overhead, bypassing Vulkan layers and avoiding EDRAM tile emulation where possible.
-- On PC platforms for debugging and testing, plume binds to **Vulkan**.
-
-### 3. Shader Architecture
-The Xbox 360 utilizes custom Xenos microcode. ReHatched-NX translates all game shaders during the build phase:
-1. Microcode is extracted from the executable containers into `out/renut_shader_dump`.
-2. [XenosRecomp](app/thirdparty/reblue-XenosRecomp) compiles microcode to SPIR-V intermediate representation.
-3. [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) translates SPIR-V into GLSL tailored for deko3d.
-4. Custom passes perform early-alpha discard optimization, instruction scheduling, and syntax translation.
-5. All translated shaders are compiled with [uam](app/thirdparty/uam) and packed directly into the Switch executable, eliminating any in-game runtime shader compilation stutter.
-
-### 4. Audio & Asset Subsystems
-- **Audio:** Xbox 360 XMA audio packets are parsed by the ReXGlue SDK audio subsystem and decompressed in real time using FFmpeg (`libavcodec`).
-- **Filesystem / VFS:** Game archives (`audio.pck`, `database.xmplr`, `stream.dat`, `speech/`, `videos/`) are mounted via a zero-copy virtual filesystem layer.
-
----
-
-## How to Build
-
-### Prerequisites
-
-#### Linux (Ubuntu/Debian-based)
 ```bash
-sudo apt update
-sudo apt install build-essential cmake ninja-build clang lld python3 python3-pip
-pip3 install xxhash pillow
+cmake -S sdk/thirdparty/glslang -B out/glslang -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=OFF \
+  -DGLSLANG_TESTS=OFF -DENABLE_GLSLANG_BINARIES=ON -DENABLE_HLSL=OFF -DGLSLANG_ENABLE_INSTALL=OFF \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build out/glslang --target glslangValidator
+bash tools/deko3d_build_tools.sh
 ```
 
-#### DevkitPro (for Nintendo Switch targets)
-1. Install [devkitPro pacman](https://devkitpro.org/wiki/Getting_Started).
-2. Install the Nintendo Switch development packages:
-   ```bash
-   sudo dkp-pacman -S switch-dev switch-portlibs deko3d uam
-   ```
-3. Ensure environment variables are set:
-   ```bash
-   export DEVKITPRO=/opt/devkitpro
-   export DEVKITA64=/opt/devkitpro/devkitA64
-   ```
+The last one builds uam and links your spirv-cross into `out/deko3d_tools`, which is where the shader steps look.
 
----
+## Building
 
-### Step 1: Provide Game Assets
-Extract your legally obtained *Angry Birds Trilogy* Xbox 360 disc image:
+**1. Extract the game**
+
 ```bash
-# Place your extracted game directory containing default.xex and data files at:
-# /path/to/birds/game
-
-# Symlink it into the app/assets directory:
-ln -s /path/to/birds/game /path/to/birds/rehatched-nx/app/assets
+python3 tools/extract_iso.py "Angry Birds Trilogy.iso" -o ~/birds/game
+ln -s ~/birds/game app/assets
 ```
 
----
+**2. The code generator**
 
-### Step 2: Build Host Tools & Perform Code Generation
-1. Build the host `rexglue` compiler:
-   ```bash
-   cd sdk
-   cmake -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release
-   cmake --build build-host --target rexglue
-   cd ..
-   ```
-2. Run code generation over the executable:
-   ```bash
-   bash tools/codegen.sh
-   python3 tools/post_codegen.py
-   ```
-   *This outputs generated C++ files in `app/generated/` and verifies calling conventions.*
-
----
-
-### Step 3: Translate & Package Shaders
-1. Dump the shader microcode from the image:
-   ```bash
-   python3 tools/renut_shader_dump.py --image out/renut_image.bin --out out/renut_shader_dump
-   ```
-2. Build the shader translator and package the deko3d binaries:
-   ```bash
-   bash tools/switch_shaders.sh
-   ```
-
----
-
-### Step 4: Build the Nintendo Switch NRO
-Configure and build with devkitA64 toolchain:
 ```bash
-cmake -S app -B app/out/switch -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=tools/switch/cmake/switch-devkitA64.cmake
+cd sdk
+cmake -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-host --target rexglue
+cd ..
+```
 
+**3. Generate the code from the game**
+
+```bash
+bash tools/codegen.sh
+python3 tools/post_codegen.py
+```
+
+That puts the generated C++ in `app/generated`. Never commit it, it's made from the game.
+
+**4. Dump the shaders**
+
+```bash
+python3 tools/renut_shader_dump.py --image out/renut_image.bin --out out/renut_shader_dump
+```
+
+**5. The PC build**
+
+You need this even for the Switch build, because it builds the shader translator the next step uses. It has to go in
+`app/out/pc`:
+
+```bash
+cmake -S app -B app/out/pc -G Ninja -DCMAKE_BUILD_TYPE=Release -DREXSDK_DIR="$PWD/sdk" \
+  -DREXGLUE_USE_VULKAN=ON -DREXGLUE_USE_D3D12=OFF
+cmake --build app/out/pc -j$(nproc)
+```
+
+You can play it on PC from there too.
+
+**6. The Switch shaders**
+
+```bash
+bash tools/switch_shaders.sh
+```
+
+**7. The Switch build**
+
+```bash
+cmake -S app -B app/out/switch -G Ninja -DCMAKE_BUILD_TYPE=Release -DREXSDK_DIR="$PWD/sdk" \
+  -DCMAKE_TOOLCHAIN_FILE="$PWD/tools/switch/cmake/switch-devkitA64.cmake"
 cmake --build app/out/switch -j$(nproc)
 ```
-The resulting executable will be at `app/out/switch/rehatched-nx.nro`.
 
----
+You end up with `app/out/switch/renut.nro`.
 
-### Step 5: (Optional) Build for PC (Linux / Vulkan)
-For debugging, RenderDoc profiling, or testing on PC:
-```bash
-cmake -S app -B app/out/pc_host -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DREXGLUE_USE_VULKAN=ON \
-  -DREXGLUE_USE_D3D12=OFF
+## Putting it on your Switch
 
-cmake --build app/out/pc_host -j$(nproc)
+```text
+sdmc:/switch/rehatched-nx/
+├── rehatched-nx.nro     (app/out/switch/renut.nro, renamed)
+└── game_root/           (everything extract_iso.py extracted)
 ```
 
----
+Open it from hbmenu. Hold R while opening an installed game so it gets full RAM, applet mode doesn't give it enough.
+The first time it runs it makes `rehatched.toml` next to the NRO, that's where your settings go.
 
-## Running on Switch
-`Note: This requires a Switch that has been modchipped or uses the Fusée Gelée hardware exploit to install custom firmware. This cannot be run on a stock Switch.`
-1. Copy the build output and configuration files to your SD card:
-   ```text
-   sdmc:/
-   └── switch/
-       └── rehatched-nx/
-           ├── rehatched-nx.nro          <-- Compiled executable
-           ├── rehatched.toml             <-- Configuration settings
-           └── (game assets or installer package)
-   ```
-2. Launch through Atmosphere custom firmware via the Homebrew Menu (holding R on an installed title for full RAM access is recommended).
+## Settings
 
-### Configuration Options
-Settings can be adjusted in `rehatched.toml`:
-- `input_xbox_layout`: Set to `false` for standard Nintendo Switch face button orientation (A on the right, B on bottom), or `true` for original Xbox layout.
-- `rehatched_keep_unused_targets`: Set to `1` (enabled by default) to keep depth targets active across surface header transitions and eliminate background flickering.
-- `banjo_renut_smaa`: Toggle post-processing subpixel morphological antialiasing.
+The ones worth knowing about in `rehatched.toml`:
 
----
+- `input_xbox_layout = false` is the default, so the buttons go by the letters on the Switch (A is A). Set it to `true`
+  if you want them by position like an Xbox pad.
+- `rehatched_keep_unused_targets` keeps depth targets around when the game re-points them between views. This is the
+  black background fix, so leave it on.
+- `banjo_renut_smaa` turns SMAA anti-aliasing on or off.
 
-## Project Structure
+## How it was made
 
-| Directory | Purpose |
-|---|---|
-| [`app/`](app/) | Game layer configuration, reNut Direct3D 9 renderer, and backend integrations |
-| [`app/src/renut_engine/gpu`](app/src/renut_engine/gpu) | GPU rendering backend (Direct3D hooks, surfaces, draw passes) |
-| [`app/thirdparty/plume`](app/thirdparty/plume) | Hardware abstraction layer for deko3d (Switch) and Vulkan (PC) |
-| [`app/thirdparty/reblue-XenosRecomp`](app/thirdparty/reblue-XenosRecomp) | Fork of XenosRecomp for shader microcode translation |
-| [`sdk/`](sdk/) | ReXGlue SDK including Horizon/Switch OS abstractions, memory manager, and audio |
-| [`tools/`](tools/) | Code generation, shader translation, Ryujinx test runners, and RenderDoc automation |
-| [`docs/`](docs/) | In-depth engineering notes, hook specifications, and architectural documentation |
-
----
+It's built on [renut_nx_ultimate_base](https://github.com/ChanseyIsTheBest/renut_nx_ultimate_base), which is
+ChanseyIsTheBest's Beautiful Katamari port with every renut port's fixes in it. The work was mostly moving the
+renderer's Direct3D hooks and device offsets over to the Xbox 360 dev kit version Angry Birds Trilogy was built with
+(2.0.9407.0), which is newer than Katamari's. The PC recomp side came from
+[TekRantGaming's Re-Hatched Collection](https://github.com/TekRantGaming/angry-birds-re-hatched-collection).
 
 ## Credits
 
-This port wouldn't be here without:
+- **[TekRantGaming](https://github.com/TekRantGaming/angry-birds-re-hatched-collection)**: the Angry Birds Re-Hatched
+  Collection PC recompilation.
+- **[ChanseyIsTheBest](https://github.com/ChanseyIsTheBest)**: renut_nx_ultimate_base, renut-nx and the other renut
+  Switch ports (katamari-nx, kameo-nx, sasrt-nx, sa2-nx, bangaio-nx).
+- **[masterspike52](https://github.com/masterspike52/reNut)**: reNut and its Direct3D-level renderer.
+- **[Tom Clay](https://github.com/rexglue/rexglue-sdk)**: the ReXGlue SDK.
+- **[Ben Vanik and the Xenia project](https://xenia.jp)**: the research everything here is built on.
+- **[hedge-dev](https://github.com/hedge-dev/XenosRecomp)**: XenosRecomp, the shader translator.
+- **[fincs and devkitPro](https://devkitpro.org)**: deko3d, uam, libnx and devkitA64.
+- **[StevensND](https://github.com/StevensND/nfsmw-nx)**: nfsmw-nx and the SDK's Switch layer.
+- **[nebadasSwifty](https://github.com/nebadasSwifty/masseffect-nx)**: masseffect-nx.
+- **[KhronosGroup](https://github.com/KhronosGroup)**: SPIRV-Cross.
+- cznn999 (dishonored-nx), Thorhax (mk9-nx), VasilkovND (ds3-nx) and LostOdysseyRecomp, whose fixes are in the base.
+- The libraries in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-- **[slicey64](https://github.com/slicey64)** — Author of the ReHatched-NX port: XDK 2.0.9407.0 hook reverse engineering, EDRAM surface view retention fixes, Linux build toolchain support, Ryujinx/RenderDoc test suite.
-- **[TekRantGaming](https://github.com/TekRantGaming/angry-birds-re-hatched-collection)** — The [Angry Birds Re-Hatched Collection](https://github.com/TekRantGaming/angry-birds-re-hatched-collection) PC recompilation project.
-- **[ChanseyIsTheBest](https://github.com/ChanseyIsTheBest)** — Author of `renut_nx_ultimate_base`, `renut-nx`, and foundational 360 Switch ports (*katamari-nx*, *kameo-nx*, *sasrt-nx*, *sa2-nx*, *bangaio-nx*).
-- **[masterspike52](https://github.com/masterspike52/reNut)** — Author of reNut and the Direct3D-level translation layer.
-- **[Tom Clay](https://github.com/rexglue/rexglue-sdk)** — Creator of the ReXGlue SDK and compiler.
-- **[Ben Vanik and the Xenia Project](https://xenia.jp)** — Research, documentation, and foundational emulation codebase upon which modern 360 recompilers rely.
-- **[hedge-dev and contributors](https://github.com/hedge-dev/XenosRecomp)** — Developers of XenosRecomp, the Xbox 360 shader microcode translator.
-- **[fincs and the devkitPro team](https://devkitpro.org)** — Creators of `deko3d`, `uam`, `libnx`, and the devkitA64 toolchain.
-- **[StevensND](https://github.com/StevensND/nfsmw-nx)** — Author of `nfsmw-nx`; authored the Horizon SDK layer, profiling techniques, and Switch build toolchains.
-- **[nebadasSwifty](https://github.com/nebadasSwifty/masseffect-nx)** — Structural design of the runtime app framework.
-- **[Khronos Group](https://github.com/KhronosGroup)** — SPIRV-Cross, SPIRV-Tools, and Vulkan specifications.
-- **Upstream Port Contributors:** cznn999 (*dishonored-nx*), Thorhax (*mk9-nx*), VasilkovND (*ds3-nx*), and the *LostOdysseyRecomp* project.
-- **Third-Party Libraries:** FFmpeg (libavcodec, libavutil), libmspack, SDL3, Dear ImGui, toml++, SIMDe, xxHash, Catch2, spdlog, and fmt (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
+## AI disclosure
 
----
+This was made with the help of both Claude Code and Google Antigravity. They did a great job, and this project could
+not have been done without them. I looked over all of the code they both implemented, and you should do the same if you
+are cautious. This repository remains 100% open source, and any issues that may arise will be worked on and
+implemented.
 
-## Licensing & Legal
+## Legal
 
-### Code Licensing
-This repository incorporates code licensed under standard open-source models:
-- **`app/`**, **`tools/`**, **`docs/`**: Licensed under the **GNU General Public License v3.0 (GPL-3.0)** (see [LICENSE](LICENSE)).
-- **`sdk/`**: Licensed under the **3-Clause BSD License** (see [sdk/LICENSE](sdk/LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
-- **`shaders/`** and **`app/thirdparty/reblue-XenosRecomp`**: Licensed under the **MIT License**.
-- **`app/thirdparty/plume`**: Licensed under the **MIT License**.
+I'm not affiliated with Rovio, Activision, Microsoft or Nintendo. This repo has no game files and no code generated
+from the game. You have to supply your own, and everything made from it (`app/generated`, the shaders) is made on your
+own computer. Running homebrew needs custom firmware, which is against Nintendo's terms and can get your console
+banned. That's up to you.
 
-Detailed license texts and notices for all bundled subcomponents are available in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-### Legal Disclaimer
-- *Angry Birds*, *Angry Birds Trilogy*, and related trademarks, logos, audio, and visual artwork are properties of **Rovio Entertainment Corporation** and/or **Activision Blizzard**.
-- *Xbox 360* is a trademark of **Microsoft Corporation**.
-- *Nintendo Switch* is a trademark of **Nintendo Co., Ltd.**
-- ReHatched-NX is an independent open-source reverse-engineering project and is **not affiliated with, endorsed by, or sponsored by** Rovio Entertainment, Activision Blizzard, Microsoft, or Nintendo.
-- No copyrighted game data, executable binaries, cutscenes, textures, or audio streams are included or hosted in this repository. End users are required to supply their own legally purchased copy of the game.
-
-### AI disclosure
-This was made with the help of both Claude Code and Google Antigravity. They did a great job, and this project could not have been done without them. I looked over all of the code they both implemented, and you should do the same if you are cautious. This repository remains 100% open source, and any issues that may arise will be worked on and implemented.
+`app/`, `tools/` and `docs/` are GPL-3.0 (see [LICENSE](LICENSE)). The SDK is BSD-3-Clause, and the shaders and plume
+are MIT ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has all of it).
