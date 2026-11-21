@@ -25,6 +25,8 @@ The first console runs turned up three bugs, all fixed now:
   re-pointing one of its depth surfaces)
 - A/B and X/Y being swapped
 
+I have only played through a little bit of Classic and Seasons, and I have yet to find any issues with backgrounds, fps or assets. If you find anything, please let me know, and I'll get it fixed. To the best of my knowledge, however, the whole game runs 100%.
+
 All the details, addresses and test runs are in [docs/rehatched-notes.md](docs/rehatched-notes.md).
 
 This technically *does* have support for Angry Birds Space like the Re-Hatched collection supports. I didn't add it
