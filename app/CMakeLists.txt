@@ -853,7 +853,7 @@ if(REXGLUE_PLATFORM_SWITCH)
     endif()
     rexglue_switch_add_nro(renut
         NAME "Angry Birds Trilogy"
-        AUTHOR "ChanseyIsTheBest"
+        AUTHOR "slicey64"
         VERSION "1.0.0"
         ${RENUT_ICON_ARG})
 endif()
